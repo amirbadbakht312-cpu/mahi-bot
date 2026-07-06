@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <title>🐟 ماهی‌گیری</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #0a2f5a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: 'Segoe UI', sans-serif;
+            touch-action: none;
+            user-select: none;
+        }
+        #container {
+            position: relative;
+            width: 400px;
+            height: 650px;
+            border-radius: 30px;
+            box-shadow: 0 0 40px rgba(0,170,255,0.2);
+            overflow: hidden;
+        }
+        canvas {
+            width: 100%;
+            height: 100%;
+            background: #1a6b8a;
+            display: block;
+            cursor: crosshair;
+        }
+        #scoreBox {
+            position: absolute;
+            top: 12px;
+            right: 14px;
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(4px);
+            padding: 6px 16px;
+            border-radius: 30px;
+            color: #ffd966;
+            font-weight: bold;
+            font-size: 1.1rem;
+            border: 1px solid rgba(255,215,0,0.2);
+            z-index: 10;
+            pointer-events: none;
+        }
+        #adminToggle {
+            position: absolute;
+            bottom: 12px;
+            right: 12px;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: rgba(255,255,255,0.4);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.6rem;
+            cursor: pointer;
+            z-index: 10;
+            backdrop-filter: blur(4px);
+        }
+        #adminToggle:hover {
+            background: rgba(255,255,255,0.2);
+        }
+        #adminPanel {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.85);
+            backdrop-filter: blur(6px);
+            color: white;
+            padding: 20px;
+            display: none;
+            flex-direction: column;
+            gap: 12px;
+            overflow-y: auto;
+            z-index: 50;
+            direction: rtl;
+        }
+        #adminPanel.show {
+            display: flex;
+        }
+        #adminPanel h2 {
+            color: #ffd966;
+            text-align: center;
+            font-size: 1.2rem;
+            margin-bottom: 10px;
+        }
+        #adminPanel label {
+            font-size: 0.9rem;
+            color: #88ddff;
+        }
+        #adminPanel input, #adminPanel select {
+            padding: 6px 12px;
+            border-radius: 12px;
+            border: none;
+            background: rgba(255,255,255,0.15);
+            color: white;
+            font-size: 0.95rem;
+            width: 100%;
+        }
+        #adminPanel input[type="color"] {
+            padding: 2px;
+            height: 40px;
+        }
+        #adminPanel .row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        #adminPanel .row label {
+            flex: 1;
+        }
+        #adminPanel .row input {
+            flex: 2;
+        }
+        #adminPanel button {
+            background: #ffd966;
+            color: #1a1a1a;
+            border: none;
+            padding: 10px;
+            border-radius: 16px;
+            font-weight: bold;
+            font-size: 1rem;
+            cursor: pointer;
+            margin-top: 6px;
+        }
+        #adminPanel button:hover {
+            background: #ffed4a;
+        }
+        #adminPanel .close-btn {
+            background: #e74c3c;
+            color: white;
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            padding: 4px 14px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+        }
+        #fishPreview {
+            width: 60px;
+            height: 60px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 16px;
+            margin: 0 auto;
+            border: 1px dashed rgba(255,255,255,0.2);
+        }
+    </style>
+</head>
+<body>
+
+<div id="container">
+    <canvas id="gameCanvas" width="400" height="650"></canvas>
+    <div id="scoreBox">🎣 0</div>
+    <div id="adminToggle">⚙️</div>
+
+    <div id="adminPanel">
+        <button class="close-btn" id="closeAdmin">✕</button>
+        <h2>🎛️ پنل مالک</h2>
+
+        <label>🖍️ نقاشی ماهی (با کلیک روی بوم)</label>
+        <div class="row">
+            <label>رنگ:</label>
+            <input type="color" id="drawColor" value="#ffaa00">
+        </div>
+        <div class="row">
+            <label>ضخامت:</label>
+            <input type="range" id="drawSize" min="2" max="20" value="6">
+        </div>
+        <button id="clearDraw">🧽 پاک کردن نقاشی</button>
+        <div id="fishPreview"></div>
+
+        <hr style="border-color:rgba(255,255,255,0.1); margin: 6px 0;">
+
+        <div class="row">
+            <label>💰 قیمت ماهی:</label>
+            <input type="number" id="fishPrice" value="25">
+        </div>
+        <div class="row">
+            <label>🎣 قدرت چوب:</label>
+            <input type="number" id="rodPower" value="3" min="1" max="10">
+        </div>
+        <div class="row">
+            <label>👁️ چشم:</label>
+            <input type="text" id="eyeStyle" placeholder="مثلاً • یا ●" value="●">
+        </div>
+        <div class="row">
+            <label>👂 گوش:</label>
+            <input type="text" id="earStyle" placeholder="مثلاً ^ یا ~" value="~">
+        </div>
+
+        <button id="saveFish">💾 ذخیره ماهی جدید</button>
+        <button id="resetFish">↺ بازنشانی به پیش‌فرض</button>
+    </div>
+</div><script>
+    (function() {
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreBox = document.getElementById('scoreBox');
+        const adminPanel = document.getElementById('adminPanel');
+        const adminToggle = document.getElementById('adminToggle');
+        const closeAdmin = document.getElementById('closeAdmin');
+
+        let score = 0;
+        let isAdmin = false;
+
+        let fishData = {
+            color: '#ffaa00',
+            price: 25,
+            rodPower: 3,
+            eye: '●',
+            ear: '~',
+            drawPoints: []
+        };
+
+        function loadFishData() {
+            const saved = localStorage.getItem('fishData');
+            if (saved) {
+                try {
+                    const parsed = JSON.parse(saved);
+                    fishData = { ...fishData, ...parsed };
+                } catch(e) {}
+            }
+            updatePreview();
+        }
+        loadFishData();
+
+        function saveFishData() {
+            localStorage.setItem('fishData', JSON.stringify(fishData));
+            updatePreview();
+        }
+
+        function updatePreview() {
+            const preview = document.getElementById('fishPreview');
+            if (!preview) return;
+            const pCtx = preview.getContext ? preview.getContext('2d') : null;
+            if (!pCtx) {
+                preview.innerHTML = `<div style="font-size:2.5rem; text-align:center; line-height:60px;">🐟</div>`;
+                return;
+            }
+            preview.width = 60;
+            preview.height = 60;
+            pCtx.clearRect(0, 0, 60, 60);
+            pCtx.beginPath();
+            pCtx.ellipse(30, 30, 22, 14, 0, 0, Math.PI*2);
+            pCtx.fillStyle = fishData.color;
+            pCtx.fill();
+            pCtx.strokeStyle = '#00000044';
+            pCtx.lineWidth = 1;
+            pCtx.stroke();
+            pCtx.fillStyle = 'white';
+            pCtx.beginPath();
+            pCtx.arc(38, 26, 5, 0, Math.PI*2);
+            pCtx.fill();
+            pCtx.fillStyle = 'black';
+            pCtx.font = '8px sans-serif';
+            pCtx.textAlign = 'center';
+            pCtx.textBaseline = 'middle';
+            pCtx.fillText(fishData.eye, 38, 26);
+            pCtx.fillStyle = fishData.color;
+            pCtx.font = '10px sans-serif';
+            pCtx.fillText(fishData.ear, 20, 18);
+            pCtx.fillStyle = '#ffd966';
+            pCtx.font = 'bold 8px sans-serif';
+            pCtx.fillText(`💰${fishData.price}`, 30, 50);
+        }
+
+        function drawFish(ctx, x, y, size, color, eye, ear, drawPoints) {
+            if (!color) color = '#ffaa00';
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.beginPath();
+            ctx.ellipse(0, 0, size, size*0.6, 0, 0, Math.PI*2);
+            ctx.fillStyle = color;
+            ctx.fill();
+            ctx.strokeStyle = '#00000033';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+
+            if (drawPoints && drawPoints.length > 0) {
+                ctx.beginPath();
+                ctx.strokeStyle = '#00000066';
+                ctx.lineWidth = 2;
+                for (let i = 0; i < drawPoints.length; i++) {
+                    const p = drawPoints[i];
+                    const px = (p.x - 0.5) * size * 2;
+                    const py = (p.y - 0.5) * size * 1.2;
+                    if (i === 0) ctx.moveTo(px, py);
+                    else ctx.lineTo(px, py);
+                }
+                ctx.stroke();
+            }
+
+            ctx.fillStyle = 'white';
+            ctx.beginPath();
+            ctx.arc(size*0.4, -size*0.15, size*0.18, 0, Math.PI*2);
+            ctx.fill();
+            ctx.fillStyle = '#222';
+            ctx.font = `${size*0.25}px sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(eye || '●', size*0.4, -size*0.15);
+
+            ctx.fillStyle = color;
+            ctx.font = `${size*0.2}px sans-serif`;
+            ctx.fillText(ear || '~', -size*0.4, -size*0.25);
+
+            ctx.beginPath();
+            ctx.moveTo(-size*0.85, 0);
+            ctx.lineTo(-size*1.3, -size*0.5);
+            ctx.lineTo(-size*1.3, size*0.5);
+            ctx.closePath();
+            ctx.fillStyle = color;
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.restore();
+        }
+
+        const boat = { x: 200, y: 520, bob: 0 };
+        const hook = {
+            x: 200, y: 510,
+            targetX: 200, targetY: 510,
+            lineX: 200, lineY: 510,
+            state: 'idle'
+        };
+        let fishes = [];
+        let particles = [];
+        let combo = 0;
+
+        function spawnFish() {
+            if (fishes.length >= 8) return;
+            const y = 80 + Math.random() * 340;
+            const dir = Math.random() > 0.5 ? 1 : -1;
+            fishes.push({
+                x: dir === 1 ? -30 : 430,
+                y: y,
+                dir: dir,
+                size: 20 + Math.random() * 10,
+                speed: (0.8 + Math.random() * 1.2) * 1.2,
+                color: fishData.color,
+                price: fishData.price,
+                eye: fishData.eye,
+                ear: fishData.ear,
+                drawPoints: fishData.drawPoints || []
+            });
+        }
+
+        function checkCatch() {
+            const hx = hook.lineX;
+            const hy = hook.lineY;
+            let caught = null;
+
+            for (let f of fishes) {
+                const dx = hx - f.x;
+                const dy = hy - f.y;
+                if (Math.sqrt(dx*dx + dy*dy) < f.size + 10) {
+                    caught = f;
+                    break;
+                }
+            }
+
+            if (caught) {
+                fishes = fishes.filter(f => f !== caught);
+                const points = Math.floor(caught.price * (fishData.rodPower / 2 + 0.5));
+                score += points;
+                combo++;
+                if (combo > 3) score += combo * 2;
+                createParticles(hx, hy, caught.color, 15);
+                playCatchSound();
+                scoreBox.textContent = `🎣 ${score}`;
+                spawnFish();
+                if (score % 10 === 0 && score > 0) sendToBot();
+            } else {
+                combo = 0;
+                playMissSound();
+            }
+        }
+
+        function createParticles(x, y, color, count = 12) {
+            for (let i = 0; i < count; i++) {
+                const a = Math.random() * 2 * Math.PI;
+                const sp = 1 + Math.random() * 2.5;
+                particles.push({
+                    x, y,
+                    vx: Math.cos(a) * sp,
+                    vy: Math.sin(a) * sp - 1,
+                    life: 1,
+                    color: color,
+                    size: 2 + Math.random() * 4
+                });
+            }
+        }
+
+        let audioCtx = null;
+        function initAudio() {
+            if (!audioCtx) {
+                try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
+            }
+        }
+        function playTone(freq, dur, vol = 0.2) {
+            try {
+                initAudio();
+                if (!audioCtx) return;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.value = freq;
+                gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + dur);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + dur);
+            } catch(e) {}
+        }
+        function playCatchSound() {
+            playTone(800, 0.1, 0.3);
+            setTimeout(() => playTone(1000, 0.1, 0.2), 100);
+        }
+        function playMissSound() { playTone(300, 0.2, 0.1); }
+
+        function sendToBot() {
+            if (typeof Telegram !== 'undefined' && Telegram.WebApp) {
+                Telegram.WebApp.sendData(JSON.stringify({
+                    score: score,
+                    collection: []
+                }));
+            }
+        }
+
+        canvas.addEventListener('click', (e) => {
+            initAudio();
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            const mx = (e.clientX - rect.left) * scaleX;
+            const my = (e.clientY - rect.top) * scaleY;
+
+            if (isAdmin) {
+                const normalizedX = mx / canvas.width;
+                const normalizedY = my / canvas.height;
+                if (normalizedX >= 0 && normalizedX <= 1 && normalizedY >= 0 && normalizedY <= 1) {
+                    fishData.drawPoints.push({ x: normalizedX, y: normalizedY });
+                    saveFishData();
+                }
+                return;
+            }
+
+            if (hook.state === 'idle') {
+                hook.targetX = Math.min(Math.max(mx, 20), 380);
+                hook.targetY = Math.min(Math.max(my, 50), 420);
+                hook.state = 'casting';
+                playTone(150, 0.3, 0.05);
+            }
+        });
+
+        adminToggle.addEventListener('click', () => {
+            const password = prompt('🔐 رمز مدیریت را وارد کنید:');
+            if (password === '1371') {
+                isAdmin = true;
+                adminPanel.classList.add('show');
+                document.getElementById('fishPrice').value = fishData.price;
+                document.getElementById('rodPower').value = fishData.rodPower;
+                document.getElementById('eyeStyle').value = fishData.eye || '●';
+                document.getElementById('earStyle').value = fishData.ear || '~';
+                document.getElementById('drawColor').value = fishData.color || '#ffaa00';
+                updatePreview();
+            } else if (password !== null) {
+                alert('❌ رمز اشتباه است!');
+            }
+        });
+
+        closeAdmin.addEventListener('click', () => {
+            isAdmin = false;
+            adminPanel.classList.remove('show');
+        });
+
+        document.getElementById('clearDraw').addEventListener('click', () => {
+            fishData.drawPoints = [];
+            saveFishData();
+        });
+
+        document.getElementById('saveFish').addEventListener('click', () => {
+            fishData.price = parseInt(document.getElementById('fishPrice').value) || 25;
+            fishData.rodPower = parseInt(document.getElementById('rodPower').value) || 3;
+            fishData.eye = document.getElementById('eyeStyle').value || '●';
+            fishData.ear = document.getElementById('earStyle').value || '~';
+            fishData.color = document.getElementById('drawColor').value || '#ffaa00';
+            saveFishData();
+            alert('✅ ماهی ذخیره شد!');
+        });
+
+        document.getElementById('resetFish').addEventListener('click', () => {
+            if (confirm('🔄 به تنظیمات پیش‌فرض بازگردیم؟')) {
+                fishData = {
+                    color: '#ffaa00',
+                    price: 25,
+                    rodPower: 3,
+                    eye: '●',
+                    ear: '~',
+                    drawPoints: []
+                };
+                saveFishData();
+                document.getElementById('fishPrice').value = 25;
+                document.getElementById('rodPower').value = 3;
+                document.getElementById('eyeStyle').value = '●';
+                document.getElementById('earStyle').value = '~';
+                document.getElementById('drawColor').value = '#ffaa00';
+                alert('✅ بازنشانی شد!');
+            }
+        });
+
+        function update() {
+            boat.bob += 0.03;
+            boat.y = 520 + Math.sin(boat.bob) * 3;
+
+            const settings = { hookSpeed: 4, waitTime: 1200 };
+            if (hook.state === 'casting') {
+                const dx = hook.targetX - hook.lineX;
+                const dy = hook.targetY - hook.lineY;
+                const dist = Math.hypot(dx, dy);
+                if (dist < 5) {
+                    hook.lineX = hook.targetX;
+                    hook.lineY = hook.targetY;
+                    hook.state = 'waiting';
+                    setTimeout(() => {
+                        if (hook.state === 'waiting') {
+                            hook.state = 'returning';
+                            hook.targetX = boat.x;
+                            hook.targetY = boat.y - 10;
+                        }
+                    }, settings.waitTime);
+                } else {
+                    hook.lineX += (dx / dist) * settings.hookSpeed;
+                    hook.lineY += (dy / dist) * settings.hookSpeed;
+                }
+            }
+
+            if (hook.state === 'returning') {
+                const dx = hook.targetX - hook.lineX;
+                const dy = hook.targetY - hook.lineY;
+                const dist = Math.hypot(dx, dy);
+                if (dist < 5) {
+                    hook.lineX = hook.targetX;
+                    hook.lineY = hook.targetY;
+                    hook.state = 'idle';
+                    checkCatch();
+                } else {
+                    const speed = settings.hookSpeed * 1.5;
+                    hook.lineX += (dx / dist) * speed;
+                    hook.lineY += (dy / dist) * speed;
+                }
+            }
+
+            for (let f of fishes) {
+                f.x += f.dir * f.speed;
+                if (f.x > 440) f.dir = -1;
+                if (f.x < -40) f.dir = 1;
+                f.y += Math.sin(Date.now() / 1000 + f.x * 0.5) * 0.2;
+            }
+            fishes = fishes.filter(f => f.x > -60 && f.x < 460);
+
+            for (let p of particles) {
+                p.x += p.vx;
+                p.y += p.vy;
+                p.vy += 0.05;
+                p.life -= 0.02;
+            }
+            particles = particles.filter(p => p.life > 0);
+
+            if (Math.random() < 0.025) spawnFish();
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, 400, 600);
+
+            const grad = ctx.createLinearGradient(0, 0, 0, 600);
+            grad.addColorStop(0, '#1a6b8a');
+            grad.addColorStop(0.6, '#0d5a7a');
+            grad.addColorStop(1, '#062a4a');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, 400, 600);
+
+            for (let p of particles) {
+                ctx.globalAlpha = p.life;
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI*2);
+                ctx.fill();
+            }
+            ctx.globalAlpha = 1;
+
+            for (let f of fishes) {
+                ctx.save();
+                ctx.translate(f.x, f.y);
+                if (f.dir < 0) ctx.scale(-1, 1);
+                drawFish(ctx, 0, 0, f.size, f.color, f.eye, f.ear, f.drawPoints);
+                ctx.restore();
+            }
+
+            ctx.beginPath();
+            ctx.moveTo(boat.x, boat.y - 5);
+            ctx.lineTo(hook.lineX, hook.lineY);
+            ctx.strokeStyle = 'rgba(200,200,200,0.4)';
+            ctx.lineWidth = 1.5;
+            ctx.setLineDash([4, 6]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            ctx.beginPath();
+            ctx.arc(hook.lineX, hook.lineY, 5, 0, Math.PI*2);
+            ctx.fillStyle = '#aaa';
+            ctx.fill();
+            ctx.strokeStyle = '#666';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+
+            ctx.save();
+            ctx.translate(boat.x, boat.y);
+            ctx.beginPath();
+            ctx.ellipse(0, 0, 35, 10, 0, 0, Math.PI*2);
+            ctx.fillStyle = '#5d4037';
+            ctx.fill();
+            ctx.fillStyle = '#ffccaa';
+            ctx.beginPath();
+            ctx.arc(0, -13, 10, 0, Math.PI*2);
+            ctx.fill();
+            ctx.fillStyle = '#4e342e';
+            ctx.beginPath();
+            ctx.ellipse(0, -19, 12, 4, 0, 0, Math.PI*2);
+            ctx.fill();
+            ctx.fillRect(-8, -22, 16, 4);
+            ctx.fillStyle = '#ccc';
+            ctx.beginPath();
+            ctx.ellipse(3, -6, 4, 6, 0.2, 0, Math.PI*2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.ellipse(-3, -6, 4, 6, -0.2, 0, Math.PI*2);
+            ctx.fill();
+            ctx.strokeStyle = '#5d4037';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(4, -12);
+            ctx.lineTo(18, -26);
+            ctx.stroke();
+            ctx.restore();
+
+            if (hook.state === 'idle' && !isAdmin) {
+                ctx.fillStyle = 'rgba(255,255,255,0.5)';
+                ctx.font = '15px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('👆 روی آب کلیک کن', 200, 45);
+            }
+            if (isAdmin) {
+                ctx.fillStyle = 'rgba(255,215,0,0.6)';
+                ctx.font = '14px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('⚙️ حالت مدیریت - برای نقاشی کلیک کن', 200, 45);
+            }
+        }
+
+        function loop() {
+            update();
+            draw();
+            requestAnimationFrame(loop);
+        }
+
+        Telegram.WebApp.ready();
+        for (let i = 0; i < 3; i++) setTimeout(spawnFish, i * 300 + 200);
+        setInterval(() => { if (score > 0) sendToBot(); }, 30000);
+        loop();
+    })();
+</script>
+</body>
+</html>

@@ -21,7 +21,6 @@ const joystick = new Joystick({ width: window.innerWidth, height: window.innerHe
 
 window.addEventListener('resize', resizeCanvas);
 
-// توابع عمومی
 window.setControlMode = (mode) => {
     currentControlMode = mode;
     player.setControlMode(mode);
@@ -34,11 +33,13 @@ window.setJoystickSize = (size) => {
 
 window.startDraggingPosition = () => {
     isDraggingPositionMode = true;
+    isDraggingJoystick = false;
     canvas.style.cursor = 'grab';
 };
 
 window.confirmPosition = () => {
     isDraggingPositionMode = false;
+    isDraggingJoystick = false;
     joystick.endDragging();
     canvas.style.cursor = '';
 };
@@ -60,14 +61,12 @@ function getCanvasCoords(e) {
     };
 }
 
-// ماوس
 canvas.addEventListener('mousedown', (e) => {
     const { x, y } = getCanvasCoords(e);
     
-    // اولویت با حالت درگ موقعیت
     if (isDraggingPositionMode) {
-        if (joystick.startDragging(x, y)) {
-            isDraggingJoystick = true;
+        isDraggingJoystick = joystick.startDragging(x, y);
+        if (isDraggingJoystick) {
             canvas.style.cursor = 'grabbing';
         }
         return;
@@ -86,16 +85,13 @@ canvas.addEventListener('mousedown', (e) => {
 canvas.addEventListener('mousemove', (e) => {
     const { x, y } = getCanvasCoords(e);
     
-    // حالت درگ موقعیت
-    if (isDraggingPositionMode && isDraggingJoystick) {
-        joystick.moveDragging(x, y);
-        return;
-    }
-    
-    // تغییر کرسر در حالت درگ موقعیت
-    if (isDraggingPositionMode && !isDraggingJoystick) {
-        const dist = Math.hypot(x - joystick.centerX, y - joystick.centerY);
-        canvas.style.cursor = dist <= joystick.radius + 20 ? 'grab' : 'default';
+    if (isDraggingPositionMode) {
+        if (isDraggingJoystick) {
+            joystick.moveDragging(x, y);
+        } else {
+            const dist = Math.hypot(x - joystick.centerX, y - joystick.centerY);
+            canvas.style.cursor = dist <= joystick.radius + 20 ? 'grab' : 'default';
+        }
         return;
     }
 
@@ -110,10 +106,11 @@ canvas.addEventListener('mousemove', (e) => {
 });
 
 window.addEventListener('mouseup', () => {
-    // پایان درگ موقعیت
-    if (isDraggingPositionMode && isDraggingJoystick) {
-        isDraggingJoystick = false;
-        canvas.style.cursor = 'grab';
+    if (isDraggingPositionMode) {
+        if (isDraggingJoystick) {
+            isDraggingJoystick = false;
+            canvas.style.cursor = 'grab';
+        }
         return;
     }
 
@@ -124,16 +121,12 @@ window.addEventListener('mouseup', () => {
     }
 });
 
-// لمس
 canvas.addEventListener('touchstart', (e) => {
     e.preventDefault();
     const { x, y } = getCanvasCoords(e);
     
-    // اولویت با حالت درگ موقعیت
     if (isDraggingPositionMode) {
-        if (joystick.startDragging(x, y)) {
-            isDraggingJoystick = true;
-        }
+        isDraggingJoystick = joystick.startDragging(x, y);
         return;
     }
 
@@ -149,7 +142,6 @@ canvas.addEventListener('touchmove', (e) => {
     e.preventDefault();
     const { x, y } = getCanvasCoords(e);
     
-    // حالت درگ موقعیت
     if (isDraggingPositionMode && isDraggingJoystick) {
         joystick.moveDragging(x, y);
         return;
@@ -166,9 +158,10 @@ canvas.addEventListener('touchmove', (e) => {
 canvas.addEventListener('touchend', (e) => {
     e.preventDefault();
     
-    // پایان درگ موقعیت
-    if (isDraggingPositionMode && isDraggingJoystick) {
-        isDraggingJoystick = false;
+    if (isDraggingPositionMode) {
+        if (isDraggingJoystick) {
+            isDraggingJoystick = false;
+        }
         return;
     }
 
@@ -191,7 +184,7 @@ canvas.addEventListener('touchcancel', (e) => {
 });
 
 function update() {
-    if (isDraggingPositionMode) return; // تو حالت درگ، بازیکن حرکت نکنه
+    if (isDraggingPositionMode) return;
 
     if (currentControlMode === 'joystick') {
         const movement = joystick.getMovement();
@@ -207,9 +200,7 @@ function draw() {
     ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
     
     if (isDraggingPositionMode) {
-        // تو حالت درگ، فقط جوی‌استیک رو با استایل خاص نشون بده
         joystick.draw(ctx, 'joystick', true);
-        // بازیکن رو هم نشون بده ولی حرکت نکنه
         player.draw(ctx);
     } else {
         player.draw(ctx);

@@ -1,8 +1,8 @@
 class Player {
     constructor(world) {
         this.world = world;
-        this.size = 50;
-        this.speed = 5;
+        this.size = 100; // دو برابر شده (قبلاً 50 بود)
+        this.speed = 1.67; // یک سوم شده (قبلاً 5 بود)
         this.targetX = null;
         this.targetY = null;
         this.controlMode = 'joystick';
@@ -116,4 +116,4 @@ class Player {
             ctx.shadowColor = 'transparent';
         }
     }
-}
+    }

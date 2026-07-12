@@ -8,11 +8,6 @@ class Joystick {
         this.dy = 0;
         this.centerX = 100;
         this.centerY = canvas.height / 2;
-        
-        this.startX = 0;
-        this.startY = 0;
-        this.currentX = 0;
-        this.currentY = 0;
         this.isDragging = false;
     }
 
@@ -73,13 +68,11 @@ class Joystick {
         let dx = x - this.centerX;
         let dy = y - this.centerY;
         const distance = Math.hypot(dx, dy);
-
         if (distance > this.maxDist) {
             const angle = Math.atan2(dy, dx);
             dx = Math.cos(angle) * this.maxDist;
             dy = Math.sin(angle) * this.maxDist;
         }
-
         this.dx = dx;
         this.dy = dy;
     }
@@ -91,40 +84,13 @@ class Joystick {
         return { angle, intensity };
     }
 
-    startClick(x, y) {
-        this.active = true;
-        this.startX = x;
-        this.startY = y;
-        this.currentX = x;
-        this.currentY = y;
-    }
-
-    moveClick(x, y) {
-        if (!this.active) return;
-        this.currentX = x;
-        this.currentY = y;
-    }
-
-    getCurrentPosition() {
-        if (!this.active) return null;
-        return { x: this.currentX, y: this.currentY };
-    }
-
     end() {
         this.active = false;
         this.dx = 0;
         this.dy = 0;
     }
 
-    draw(ctx, mode, isDraggingMode = false) {
-        if (mode === 'joystick') {
-            this.drawJoystick(ctx, isDraggingMode);
-        } else if (mode === 'click' && this.active) {
-            this.drawClickIndicator(ctx);
-        }
-    }
-
-    drawJoystick(ctx, isDraggingMode = false) {
+    draw(ctx, isDraggingMode = false) {
         ctx.beginPath();
         ctx.arc(this.centerX, this.centerY, this.radius, 0, Math.PI * 2);
         
@@ -134,11 +100,10 @@ class Joystick {
             ctx.strokeStyle = 'rgba(255, 200, 0, 0.8)';
             ctx.lineWidth = 3;
         } else {
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
             ctx.lineWidth = 2;
         }
-        
         ctx.fill();
         ctx.stroke();
 
@@ -146,36 +111,14 @@ class Joystick {
             const stickX = this.centerX + this.dx;
             const stickY = this.centerY + this.dy;
             ctx.beginPath();
-            ctx.arc(stickX, stickY, 25, 0, Math.PI * 2);
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+            ctx.arc(stickX, stickY, 22, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
             ctx.fill();
         } else {
             ctx.beginPath();
-            ctx.arc(this.centerX, this.centerY, isDraggingMode ? 25 : 20, 0, Math.PI * 2);
-            ctx.fillStyle = isDraggingMode ? 'rgba(255, 200, 0, 0.9)' : 'rgba(255, 255, 255, 0.5)';
+            ctx.arc(this.centerX, this.centerY, isDraggingMode ? 22 : 18, 0, Math.PI * 2);
+            ctx.fillStyle = isDraggingMode ? 'rgba(255, 200, 0, 0.8)' : 'rgba(255, 255, 255, 0.4)';
             ctx.fill();
         }
     }
-
-    drawClickIndicator(ctx) {
-        ctx.beginPath();
-        ctx.arc(this.startX, this.startY, 30, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
-        ctx.fill();
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
-        ctx.lineWidth = 2;
-        ctx.stroke();
-
-        ctx.beginPath();
-        ctx.arc(this.currentX, this.currentY, 25, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-        ctx.fill();
-
-        ctx.beginPath();
-        ctx.moveTo(this.startX, this.startY);
-        ctx.lineTo(this.currentX, this.currentY);
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
-        ctx.lineWidth = 3;
-        ctx.stroke();
-    }
-}
+                    }

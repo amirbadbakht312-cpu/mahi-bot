@@ -76,7 +76,7 @@
             padding: 20px;
             color: white;
             z-index: 999;
-            min-width: 280px;
+            min-width: 300px;
             backdrop-filter: blur(20px);
             display: none;
             animation: slideIn 0.3s ease-out;
@@ -118,7 +118,6 @@
             font-weight: bold;
         }
 
-        /* رادیو باتن‌های استایل‌دار */
         .radio-group {
             display: flex;
             gap: 10px;
@@ -167,7 +166,6 @@
             border-radius: 50%;
         }
 
-        /* اسلایدرها */
         input[type="range"] {
             width: 100%;
             height: 6px;
@@ -194,26 +192,41 @@
             color: rgba(255, 255, 255, 0.6);
         }
 
-        .coord-inputs {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-        }
-
-        .coord-inputs input {
-            width: 70px;
-            padding: 8px;
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.2);
+        /* دکمه تنظیم موقعیت */
+        #setPositionBtn {
+            width: 100%;
+            padding: 10px;
+            background: rgba(0, 210, 255, 0.2);
+            border: 1px solid rgba(0, 210, 255, 0.4);
             border-radius: 8px;
-            color: white;
+            color: #00d2ff;
             font-size: 14px;
-            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-top: 10px;
         }
 
-        .coord-inputs span {
-            color: rgba(255, 255, 255, 0.5);
+        #setPositionBtn:hover {
+            background: rgba(0, 210, 255, 0.3);
+        }
+
+        #setPositionBtn.active {
+            background: rgba(255, 100, 100, 0.3);
+            border-color: rgba(255, 100, 100, 0.6);
+            color: #ff6464;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .position-info {
+            text-align: center;
+            margin-top: 8px;
             font-size: 12px;
+            color: rgba(255, 255, 255, 0.6);
         }
     </style>
 </head>
@@ -221,10 +234,8 @@
     <div id="gameContainer">
         <canvas id="gameCanvas"></canvas>
         
-        <!-- دکمه تنظیمات -->
         <button id="settingsBtn" title="تنظیمات">🔧</button>
         
-        <!-- پنل تنظیمات -->
         <div id="settingsPanel">
             <h3>⚙️ تنظیمات کنترل</h3>
             
@@ -237,7 +248,7 @@
                     </label>
                     <label class="radio-option">
                         <input type="radio" name="controlMode" value="click">
-                        <span>👆 کلیک و حرکت (Stardew Valley)</span>
+                        <span>👆 کلیک و حرکت (کلیک کن، برو به هدف)</span>
                     </label>
                 </div>
             </div>
@@ -248,14 +259,9 @@
                 <div class="range-value" id="sizeValue">60px</div>
 
                 <label style="margin-top: 15px;">موقعیت دایره:</label>
-                <div class="coord-inputs">
-                    <input type="number" id="joyX" placeholder="X" value="100">
-                    <span>X</span>
-                    <input type="number" id="joyY" placeholder="Y" value="center">
-                    <span>Y</span>
-                </div>
-                <div class="range-value" style="margin-top: 5px;">
-                    💡 Y = "center" یعنی وسط صفحه
+                <button id="setPositionBtn">📍 انتخاب موقعیت روی صفحه</button>
+                <div class="position-info" id="positionInfo">
+                    موقعیت فعلی: X: <span id="posX">100</span>, Y: <span id="posY">وسط</span>
                 </div>
             </div>
         </div>
@@ -266,41 +272,38 @@
     <script src="js/game.js"></script>
     
     <script>
-        // مدیریت UI تنظیمات
         const settingsBtn = document.getElementById('settingsBtn');
         const settingsPanel = document.getElementById('settingsPanel');
         const joystickSettings = document.getElementById('joystickSettings');
         const controlModeRadios = document.querySelectorAll('input[name="controlMode"]');
         const joystickSizeSlider = document.getElementById('joystickSize');
         const sizeValue = document.getElementById('sizeValue');
-        const joyXInput = document.getElementById('joyX');
-        const joyYInput = document.getElementById('joyY');
+        const setPositionBtn = document.getElementById('setPositionBtn');
+        const posXSpan = document.getElementById('posX');
+        const posYSpan = document.getElementById('posY');
+        
+        let isSettingPosition = false;
 
-        // باز و بسته کردن پنل
         settingsBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             settingsPanel.classList.toggle('active');
         });
 
-        // بستن پنل با کلیک بیرون
         document.addEventListener('click', (e) => {
             if (!settingsPanel.contains(e.target) && e.target !== settingsBtn) {
                 settingsPanel.classList.remove('active');
             }
         });
 
-        // جلوگیری از بسته شدن با کلیک روی پنل
         settingsPanel.addEventListener('click', (e) => {
             e.stopPropagation();
         });
 
-        // تغییر حالت کنترل
         controlModeRadios.forEach(radio => {
             radio.addEventListener('change', (e) => {
                 const mode = e.target.value;
                 window.setControlMode(mode);
                 
-                // نمایش/مخفی کردن تنظیمات جوی‌استیک
                 if (mode === 'joystick') {
                     joystickSettings.style.display = 'block';
                 } else {
@@ -309,34 +312,36 @@
             });
         });
 
-        // تغییر اندازه جوی‌استیک
         joystickSizeSlider.addEventListener('input', (e) => {
             const size = parseInt(e.target.value);
             sizeValue.textContent = size + 'px';
             window.setJoystickSize(size);
         });
 
-        // تغییر موقعیت جوی‌استیک
-        joyXInput.addEventListener('input', () => {
-            updateJoystickPosition();
-        });
-
-        joyYInput.addEventListener('input', () => {
-            updateJoystickPosition();
-        });
-
-        function updateJoystickPosition() {
-            const x = parseInt(joyXInput.value) || 100;
-            let y = joyYInput.value.toLowerCase();
+        // دکمه تنظیم موقعیت
+        setPositionBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            isSettingPosition = !isSettingPosition;
             
-            if (y === 'center' || y === '') {
-                y = window.innerHeight / 2;
+            if (isSettingPosition) {
+                setPositionBtn.textContent = '🎯 روی صفحه نقطه مورد نظر رو بزن...';
+                setPositionBtn.classList.add('active');
+                window.startSettingPosition();
             } else {
-                y = parseInt(y) || window.innerHeight / 2;
+                setPositionBtn.textContent = '📍 انتخاب موقعیت روی صفحه';
+                setPositionBtn.classList.remove('active');
+                window.cancelSettingPosition();
             }
-            
-            window.setJoystickPosition(x, y);
-        }
+        });
+
+        // دریافت موقعیت جدید از game.js
+        window.updatePositionDisplay = (x, y) => {
+            posXSpan.textContent = Math.round(x);
+            posYSpan.textContent = Math.round(y);
+            isSettingPosition = false;
+            setPositionBtn.textContent = '📍 انتخاب موقعیت روی صفحه';
+            setPositionBtn.classList.remove('active');
+        };
     </script>
 </body>
 </html>

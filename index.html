@@ -37,56 +37,44 @@
         /* دکمه تنظیمات */
         #settingsBtn {
             position: absolute;
-            top: 20px;
-            left: 20px;
-            width: 50px;
-            height: 50px;
+            top: 15px;
+            left: 15px;
+            width: 40px;
+            height: 40px;
             background: rgba(30, 30, 50, 0.9);
-            border: 2px solid rgba(255, 255, 255, 0.3);
-            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 8px;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 24px;
+            font-size: 18px;
             color: white;
             z-index: 1000;
-            transition: all 0.3s;
+            transition: all 0.2s;
             backdrop-filter: blur(10px);
         }
 
         #settingsBtn:hover {
             background: rgba(50, 50, 80, 0.9);
             border-color: rgba(255, 255, 255, 0.5);
-            transform: scale(1.05);
         }
 
         /* پنل تنظیمات */
         #settingsPanel {
             position: absolute;
-            top: 20px;
-            left: 80px;
+            top: 15px;
+            left: 65px;
             background: rgba(20, 20, 40, 0.95);
-            border: 2px solid rgba(255, 255, 255, 0.2);
-            border-radius: 16px;
-            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            padding: 15px;
             color: white;
             z-index: 999;
-            min-width: 300px;
+            min-width: 250px;
             backdrop-filter: blur(20px);
             display: none;
-            animation: slideIn 0.3s ease-out;
-        }
-
-        @keyframes slideIn {
-            from {
-                opacity: 0;
-                transform: translateX(-20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateX(0);
-            }
+            font-size: 12px;
         }
 
         #settingsPanel.active {
@@ -94,41 +82,42 @@
         }
 
         #settingsPanel h3 {
-            margin: 0 0 20px 0;
-            font-size: 18px;
+            margin: 0 0 12px 0;
+            font-size: 14px;
             text-align: center;
             color: #00d2ff;
             border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-            padding-bottom: 10px;
+            padding-bottom: 8px;
         }
 
         .setting-group {
-            margin-bottom: 20px;
+            margin-bottom: 12px;
         }
 
         .setting-group label {
             display: block;
-            margin-bottom: 8px;
-            font-size: 14px;
-            color: rgba(255, 255, 255, 0.8);
+            margin-bottom: 5px;
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.7);
             font-weight: bold;
         }
 
         .radio-group {
             display: flex;
-            gap: 10px;
+            gap: 6px;
             flex-direction: column;
         }
 
         .radio-option {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
             cursor: pointer;
-            padding: 8px 12px;
+            padding: 6px 10px;
             background: rgba(255, 255, 255, 0.05);
-            border-radius: 8px;
+            border-radius: 6px;
             transition: all 0.2s;
+            font-size: 11px;
         }
 
         .radio-option:hover {
@@ -137,13 +126,14 @@
 
         .radio-option input[type="radio"] {
             appearance: none;
-            width: 18px;
-            height: 18px;
+            width: 14px;
+            height: 14px;
             border: 2px solid rgba(255, 255, 255, 0.3);
             border-radius: 50%;
             cursor: pointer;
             position: relative;
             transition: all 0.2s;
+            flex-shrink: 0;
         }
 
         .radio-option input[type="radio"]:checked {
@@ -154,107 +144,97 @@
         .radio-option input[type="radio"]:checked::after {
             content: '';
             position: absolute;
-            top: 3px;
-            left: 3px;
-            width: 8px;
-            height: 8px;
+            top: 2px;
+            left: 2px;
+            width: 6px;
+            height: 6px;
             background: #00d2ff;
             border-radius: 50%;
         }
 
         input[type="range"] {
             width: 100%;
-            height: 6px;
+            height: 4px;
             background: rgba(255, 255, 255, 0.1);
-            border-radius: 3px;
+            border-radius: 2px;
             outline: none;
             -webkit-appearance: none;
         }
 
         input[type="range"]::-webkit-slider-thumb {
             -webkit-appearance: none;
-            width: 20px;
-            height: 20px;
+            width: 16px;
+            height: 16px;
             background: #00d2ff;
             border-radius: 50%;
             cursor: pointer;
-            box-shadow: 0 0 10px rgba(0, 210, 255, 0.5);
         }
 
         .range-value {
             text-align: center;
-            margin-top: 5px;
-            font-size: 12px;
-            color: rgba(255, 255, 255, 0.6);
+            margin-top: 3px;
+            font-size: 10px;
+            color: rgba(255, 255, 255, 0.5);
         }
 
-        /* دکمه تنظیم موقعیت */
         #setPositionBtn {
             width: 100%;
-            padding: 10px;
-            background: rgba(0, 210, 255, 0.2);
-            border: 1px solid rgba(0, 210, 255, 0.4);
-            border-radius: 8px;
+            padding: 8px;
+            background: rgba(0, 210, 255, 0.15);
+            border: 1px solid rgba(0, 210, 255, 0.3);
+            border-radius: 6px;
             color: #00d2ff;
-            font-size: 14px;
+            font-size: 11px;
             cursor: pointer;
             transition: all 0.2s;
-            margin-top: 10px;
+            margin-top: 8px;
         }
 
         #setPositionBtn:hover {
-            background: rgba(0, 210, 255, 0.3);
+            background: rgba(0, 210, 255, 0.25);
         }
 
         .position-info {
             text-align: center;
-            margin-top: 8px;
-            font-size: 12px;
-            color: rgba(255, 255, 255, 0.6);
+            margin-top: 6px;
+            font-size: 10px;
+            color: rgba(255, 255, 255, 0.5);
         }
 
-        /* دکمه تأیید موقعیت (بیرون از پنل) */
+        /* دکمه تأیید موقعیت */
         #confirmPositionBtn {
             position: absolute;
-            bottom: 40px;
+            bottom: 30px;
             left: 50%;
             transform: translateX(-50%);
-            padding: 15px 40px;
+            padding: 10px 30px;
             background: rgba(0, 210, 255, 0.9);
             border: none;
-            border-radius: 25px;
+            border-radius: 20px;
             color: white;
-            font-size: 16px;
+            font-size: 13px;
             font-weight: bold;
             cursor: pointer;
             z-index: 1001;
             display: none;
-            animation: bounceIn 0.5s ease-out;
-            box-shadow: 0 5px 20px rgba(0, 210, 255, 0.4);
+            box-shadow: 0 4px 15px rgba(0, 210, 255, 0.3);
         }
 
         #confirmPositionBtn:hover {
             background: rgba(0, 210, 255, 1);
-            transform: translateX(-50%) scale(1.05);
         }
 
-        @keyframes bounceIn {
-            0% { transform: translateX(-50%) scale(0); }
-            50% { transform: translateX(-50%) scale(1.1); }
-            100% { transform: translateX(-50%) scale(1); }
-        }
-
-        /* راهنمای متنی */
+        /* راهنما */
         #dragHint {
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            background: rgba(0, 0, 0, 0.7);
+            background: rgba(0, 0, 0, 0.75);
             color: white;
-            padding: 10px 20px;
-            border-radius: 20px;
-            font-size: 14px;
+            padding: 8px 16px;
+            border-radius: 16px;
+            font-size: 12px;
             z-index: 1001;
             display: none;
             pointer-events: none;
@@ -265,22 +245,21 @@
     <div id="gameContainer">
         <canvas id="gameCanvas"></canvas>
         
-        <button id="settingsBtn" title="تنظیمات">🔧</button>
+        <button id="settingsBtn" title="تنظیمات">&#9881;</button>
         
-        <!-- پنل تنظیمات -->
         <div id="settingsPanel">
-            <h3>⚙️ تنظیمات کنترل</h3>
+            <h3>تنظیمات کنترل</h3>
             
             <div class="setting-group">
                 <label>حالت کنترل:</label>
                 <div class="radio-group" id="controlModeGroup">
                     <label class="radio-option">
                         <input type="radio" name="controlMode" value="joystick" checked>
-                        <span>🎮 جوی‌استیک (دایره کنترل)</span>
+                        <span>دایره کنترل (جوی‌استیک)</span>
                     </label>
                     <label class="radio-option">
                         <input type="radio" name="controlMode" value="click">
-                        <span>👆 کلیک و حرکت (کلیک کن، برو به هدف)</span>
+                        <span>کلیک و حرکت به سمت هدف</span>
                     </label>
                 </div>
             </div>
@@ -290,19 +269,17 @@
                 <input type="range" id="joystickSize" min="40" max="150" value="60" step="5">
                 <div class="range-value" id="sizeValue">60px</div>
 
-                <label style="margin-top: 15px;">موقعیت دایره:</label>
-                <button id="setPositionBtn">📍 بکش و رها کن روی صفحه</button>
+                <label>موقعیت دایره:</label>
+                <button id="setPositionBtn">بکش و رها کن روی صفحه</button>
                 <div class="position-info" id="positionInfo">
                     موقعیت: X: <span id="posX">100</span>, Y: <span id="posY">وسط</span>
                 </div>
             </div>
         </div>
 
-        <!-- دکمه تأیید (بیرون از پنل) -->
-        <button id="confirmPositionBtn">✓ تأیید موقعیت</button>
+        <button id="confirmPositionBtn">تایید موقعیت</button>
         
-        <!-- راهنما -->
-        <div id="dragHint">👇 دایره رو بکش هرجا خواستی، بعد تأیید کن</div>
+        <div id="dragHint">دایره رو بکش هرجا خواستی، بعد تایید کن</div>
     </div>
 
     <script src="js/player.js"></script>
@@ -321,8 +298,6 @@
         const dragHint = document.getElementById('dragHint');
         const posXSpan = document.getElementById('posX');
         const posYSpan = document.getElementById('posY');
-        
-        let isDraggingPosition = false;
 
         settingsBtn.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -343,12 +318,7 @@
             radio.addEventListener('change', (e) => {
                 const mode = e.target.value;
                 window.setControlMode(mode);
-                
-                if (mode === 'joystick') {
-                    joystickSettings.style.display = 'block';
-                } else {
-                    joystickSettings.style.display = 'none';
-                }
+                joystickSettings.style.display = mode === 'joystick' ? 'block' : 'none';
             });
         });
 
@@ -358,43 +328,26 @@
             window.setJoystickSize(size);
         });
 
-        // دکمه تنظیم موقعیت - بستن پنل و شروع حالت درگ
         setPositionBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            isDraggingPosition = true;
-            
-            // بستن پنل تنظیمات
             settingsPanel.classList.remove('active');
-            
-            // نمایش دکمه تأیید و راهنما
             confirmPositionBtn.style.display = 'block';
             dragHint.style.display = 'block';
             
-            // مخفی کردن راهنما بعد از ۳ ثانیه
             setTimeout(() => {
                 dragHint.style.display = 'none';
             }, 3000);
             
-            // فعال کردن حالت درگ
             window.startDraggingPosition();
         });
 
-        // دکمه تأیید - برگشت به تنظیمات
         confirmPositionBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            isDraggingPosition = false;
-            
-            // مخفی کردن دکمه تأیید و راهنما
             confirmPositionBtn.style.display = 'none';
             dragHint.style.display = 'none';
-            
-            // برگشت به پنل تنظیمات
             settingsPanel.classList.add('active');
-            
-            // پایان حالت درگ
             window.confirmPosition();
             
-            // بروزرسانی نمایش موقعیت
             const pos = window.getJoystickPosition();
             posXSpan.textContent = Math.round(pos.x);
             posYSpan.textContent = Math.round(pos.y);

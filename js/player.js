@@ -1,19 +1,28 @@
 class Player {
     constructor(world) {
         this.world = world;
-        this.size = 40;
+        this.size = 50;
         this.speed = 5;
         this.targetX = null;
         this.targetY = null;
         this.controlMode = 'joystick';
         
-        // شروع از وسط دنیا
         this.x = world.width / 2 - this.size / 2;
         this.y = world.height / 2 - this.size / 2;
+        
+        // لود عکس از مسیر جدید
+        this.image = new Image();
+        this.image.src = 'assets/images/pangnafasdam.jpeg';
+        this.imageLoaded = false;
+        this.image.onload = () => { 
+            this.imageLoaded = true; 
+        };
+        this.image.onerror = () => { 
+            this.imageLoaded = false; 
+        };
     }
 
     updatePositionOnResize() {
-        // وسط دنیا
         this.x = this.world.width / 2 - this.size / 2;
         this.y = this.world.height / 2 - this.size / 2;
         this.targetX = null;
@@ -35,7 +44,6 @@ class Player {
 
     setTarget(x, y) {
         if (this.controlMode !== 'click') return;
-        // تبدیل مختصات صفحه به مختصات دنیا
         this.targetX = x - this.size / 2;
         this.targetY = y - this.size / 2;
     }
@@ -75,30 +83,37 @@ class Player {
         const screenX = this.x - camera.x;
         const screenY = this.y - camera.y;
         
+        // نمایش نقطه هدف در حالت کلیک
         if (this.controlMode === 'click' && this.targetX !== null && this.targetY !== null) {
-            const targetScreenX = this.targetX - camera.x;
-            const targetScreenY = this.targetY - camera.y;
+            const targetScreenX = this.targetX + this.size / 2 - camera.x;
+            const targetScreenY = this.targetY + this.size / 2 - camera.y;
             
+            ctx.fillStyle = '#00ff88';
             ctx.beginPath();
-            ctx.moveTo(screenX + this.size / 2, screenY + this.size / 2);
-            ctx.lineTo(targetScreenX + this.size / 2, targetScreenY + this.size / 2);
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
-            ctx.lineWidth = 2;
-            ctx.setLineDash([5, 5]);
-            ctx.stroke();
-            ctx.setLineDash([]);
-            
-            ctx.beginPath();
-            ctx.arc(targetScreenX + this.size / 2, targetScreenY + this.size / 2, 5, 0, Math.PI * 2);
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+            ctx.arc(targetScreenX, targetScreenY, 6, 0, Math.PI * 2);
             ctx.fill();
+            
+            ctx.strokeStyle = 'rgba(0, 255, 136, 0.5)';
+            ctx.lineWidth = 1;
+            ctx.stroke();
         }
 
-        ctx.fillStyle = '#00d2ff';
-        ctx.shadowColor = '#00d2ff';
-        ctx.shadowBlur = 15;
-        ctx.fillRect(screenX, screenY, this.size, this.size);
-        ctx.shadowBlur = 0;
-        ctx.shadowColor = 'transparent';
+        // رسم عکس یا مربع پیش‌فرض
+        if (this.imageLoaded) {
+            // رسم عکس با سایز دقیق
+            ctx.save();
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+            ctx.drawImage(this.image, screenX, screenY, this.size, this.size);
+            ctx.restore();
+        } else {
+            // مربع پیش‌فرض
+            ctx.fillStyle = '#00d2ff';
+            ctx.shadowColor = '#00d2ff';
+            ctx.shadowBlur = 15;
+            ctx.fillRect(screenX, screenY, this.size, this.size);
+            ctx.shadowBlur = 0;
+            ctx.shadowColor = 'transparent';
+        }
     }
 }

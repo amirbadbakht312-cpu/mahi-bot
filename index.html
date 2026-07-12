@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>بازی کنترل مربع</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background: #1a1a2e;
+            height: 100vh;
+            touch-action: none;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        #gameContainer {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        canvas {
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        /* دکمه تنظیمات */
+        #settingsBtn {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            width: 50px;
+            height: 50px;
+            background: rgba(30, 30, 50, 0.9);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: white;
+            z-index: 1000;
+            transition: all 0.3s;
+            backdrop-filter: blur(10px);
+        }
+
+        #settingsBtn:hover {
+            background: rgba(50, 50, 80, 0.9);
+            border-color: rgba(255, 255, 255, 0.5);
+            transform: scale(1.05);
+        }
+
+        #settingsBtn:active {
+            transform: scale(0.95);
+        }
+
+        /* پنل تنظیمات */
+        #settingsPanel {
+            position: absolute;
+            top: 20px;
+            left: 80px;
+            background: rgba(20, 20, 40, 0.95);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 16px;
+            padding: 20px;
+            color: white;
+            z-index: 999;
+            min-width: 280px;
+            backdrop-filter: blur(20px);
+            display: none;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        #settingsPanel.active {
+            display: block;
+        }
+
+        #settingsPanel h3 {
+            margin: 0 0 20px 0;
+            font-size: 18px;
+            text-align: center;
+            color: #00d2ff;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 10px;
+        }
+
+        .setting-group {
+            margin-bottom: 20px;
+        }
+
+        .setting-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.8);
+            font-weight: bold;
+        }
+
+        /* رادیو باتن‌های استایل‌دار */
+        .radio-group {
+            display: flex;
+            gap: 10px;
+            flex-direction: column;
+        }
+
+        .radio-option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            padding: 8px 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+
+        .radio-option:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .radio-option input[type="radio"] {
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            cursor: pointer;
+            position: relative;
+            transition: all 0.2s;
+        }
+
+        .radio-option input[type="radio"]:checked {
+            border-color: #00d2ff;
+            background: rgba(0, 210, 255, 0.2);
+        }
+
+        .radio-option input[type="radio"]:checked::after {
+            content: '';
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            width: 8px;
+            height: 8px;
+            background: #00d2ff;
+            border-radius: 50%;
+        }
+
+        /* اسلایدرها */
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #00d2ff;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(0, 210, 255, 0.5);
+        }
+
+        .range-value {
+            text-align: center;
+            margin-top: 5px;
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .coord-inputs {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .coord-inputs input {
+            width: 70px;
+            padding: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            color: white;
+            font-size: 14px;
+            text-align: center;
+        }
+
+        .coord-inputs span {
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas"></canvas>
+        
+        <!-- دکمه تنظیمات -->
+        <button id="settingsBtn" title="تنظیمات">🔧</button>
+        
+        <!-- پنل تنظیمات -->
+        <div id="settingsPanel">
+            <h3>⚙️ تنظیمات کنترل</h3>
+            
+            <div class="setting-group">
+                <label>حالت کنترل:</label>
+                <div class="radio-group" id="controlModeGroup">
+                    <label class="radio-option">
+                        <input type="radio" name="controlMode" value="joystick" checked>
+                        <span>🎮 جوی‌استیک (دایره کنترل)</span>
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="controlMode" value="click">
+                        <span>👆 کلیک و حرکت (Stardew Valley)</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="setting-group" id="joystickSettings">
+                <label>اندازه دایره کنترل:</label>
+                <input type="range" id="joystickSize" min="40" max="150" value="60" step="5">
+                <div class="range-value" id="sizeValue">60px</div>
+
+                <label style="margin-top: 15px;">موقعیت دایره:</label>
+                <div class="coord-inputs">
+                    <input type="number" id="joyX" placeholder="X" value="100">
+                    <span>X</span>
+                    <input type="number" id="joyY" placeholder="Y" value="center">
+                    <span>Y</span>
+                </div>
+                <div class="range-value" style="margin-top: 5px;">
+                    💡 Y = "center" یعنی وسط صفحه
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/player.js"></script>
+    <script src="js/joystick.js"></script>
+    <script src="js/game.js"></script>
+    
+    <script>
+        // مدیریت UI تنظیمات
+        const settingsBtn = document.getElementById('settingsBtn');
+        const settingsPanel = document.getElementById('settingsPanel');
+        const joystickSettings = document.getElementById('joystickSettings');
+        const controlModeRadios = document.querySelectorAll('input[name="controlMode"]');
+        const joystickSizeSlider = document.getElementById('joystickSize');
+        const sizeValue = document.getElementById('sizeValue');
+        const joyXInput = document.getElementById('joyX');
+        const joyYInput = document.getElementById('joyY');
+
+        // باز و بسته کردن پنل
+        settingsBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            settingsPanel.classList.toggle('active');
+        });
+
+        // بستن پنل با کلیک بیرون
+        document.addEventListener('click', (e) => {
+            if (!settingsPanel.contains(e.target) && e.target !== settingsBtn) {
+                settingsPanel.classList.remove('active');
+            }
+        });
+
+        // جلوگیری از بسته شدن با کلیک روی پنل
+        settingsPanel.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
+
+        // تغییر حالت کنترل
+        controlModeRadios.forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                const mode = e.target.value;
+                window.setControlMode(mode);
+                
+                // نمایش/مخفی کردن تنظیمات جوی‌استیک
+                if (mode === 'joystick') {
+                    joystickSettings.style.display = 'block';
+                } else {
+                    joystickSettings.style.display = 'none';
+                }
+            });
+        });
+
+        // تغییر اندازه جوی‌استیک
+        joystickSizeSlider.addEventListener('input', (e) => {
+            const size = parseInt(e.target.value);
+            sizeValue.textContent = size + 'px';
+            window.setJoystickSize(size);
+        });
+
+        // تغییر موقعیت جوی‌استیک
+        joyXInput.addEventListener('input', () => {
+            updateJoystickPosition();
+        });
+
+        joyYInput.addEventListener('input', () => {
+            updateJoystickPosition();
+        });
+
+        function updateJoystickPosition() {
+            const x = parseInt(joyXInput.value) || 100;
+            let y = joyYInput.value.toLowerCase();
+            
+            if (y === 'center' || y === '') {
+                y = window.innerHeight / 2;
+            } else {
+                y = parseInt(y) || window.innerHeight / 2;
+            }
+            
+            window.setJoystickPosition(x, y);
+        }
+    </script>
+</body>
+</html>

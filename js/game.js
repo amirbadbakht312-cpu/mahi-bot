@@ -2,7 +2,7 @@ const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
 let currentControlMode = 'joystick';
-let settingPositionMode = false;
+let isDraggingPositionMode = false;
 
 function resizeCanvas() {
     const dpr = window.devicePixelRatio || 1;
@@ -21,7 +21,7 @@ const joystick = new Joystick({ width: window.innerWidth, height: window.innerHe
 
 window.addEventListener('resize', resizeCanvas);
 
-// توابع عمومی برای UI
+// توابع عمومی
 window.setControlMode = (mode) => {
     currentControlMode = mode;
     player.setControlMode(mode);
@@ -32,18 +32,23 @@ window.setJoystickSize = (size) => {
     joystick.setSize(size);
 };
 
-window.startSettingPosition = () => {
-    settingPositionMode = true;
-    canvas.style.cursor = 'crosshair';
+window.startDraggingPosition = () => {
+    isDraggingPositionMode = true;
+    canvas.style.cursor = 'grab';
 };
 
-window.cancelSettingPosition = () => {
-    settingPositionMode = false;
+window.confirmPosition = () => {
+    isDraggingPositionMode = false;
+    joystick.endDragging();
     canvas.style.cursor = '';
 };
 
-// کنترل‌ها
+window.getJoystickPosition = () => {
+    return joystick.getPosition();
+};
+
 let mouseIsDown = false;
+let isDraggingJoystick = false;
 
 function getCanvasCoords(e) {
     const rect = canvas.getBoundingClientRect();
@@ -57,73 +62,84 @@ function getCanvasCoords(e) {
 
 // ماوس
 canvas.addEventListener('mousedown', (e) => {
-    // اگر در حالت تنظیم موقعیت هستیم
-    if (settingPositionMode) {
-        const { x, y } = getCanvasCoords(e);
-        joystick.setPosition(x, y);
-        window.updatePositionDisplay(x, y);
-        settingPositionMode = false;
-        canvas.style.cursor = '';
+    const { x, y } = getCanvasCoords(e);
+    
+    // اولویت با حالت درگ موقعیت
+    if (isDraggingPositionMode) {
+        if (joystick.startDragging(x, y)) {
+            isDraggingJoystick = true;
+            canvas.style.cursor = 'grabbing';
+        }
         return;
     }
 
     mouseIsDown = true;
-    const { x, y } = getCanvasCoords(e);
     
     if (currentControlMode === 'joystick') {
         joystick.startJoystick(x, y);
     } else {
-        // حالت کلیک: فقط هدف رو تنظیم کن (بدون نیاز به نگه داشتن)
         joystick.startClick(x, y);
         player.setTarget(x, y);
     }
 });
 
 canvas.addEventListener('mousemove', (e) => {
-    if (settingPositionMode) return;
-    if (!mouseIsDown) return;
     const { x, y } = getCanvasCoords(e);
+    
+    // حالت درگ موقعیت
+    if (isDraggingPositionMode && isDraggingJoystick) {
+        joystick.moveDragging(x, y);
+        return;
+    }
+    
+    // تغییر کرسر در حالت درگ موقعیت
+    if (isDraggingPositionMode && !isDraggingJoystick) {
+        const dist = Math.hypot(x - joystick.centerX, y - joystick.centerY);
+        canvas.style.cursor = dist <= joystick.radius + 20 ? 'grab' : 'default';
+        return;
+    }
+
+    if (!mouseIsDown) return;
     
     if (currentControlMode === 'joystick') {
         joystick.moveJoystick(x, y);
     } else {
-        // تو حالت کلیک، موقع حرکت ماوس هدف رو بروز کن
         joystick.moveClick(x, y);
         player.setTarget(x, y);
     }
 });
 
 window.addEventListener('mouseup', () => {
-    if (settingPositionMode) return;
+    // پایان درگ موقعیت
+    if (isDraggingPositionMode && isDraggingJoystick) {
+        isDraggingJoystick = false;
+        canvas.style.cursor = 'grab';
+        return;
+    }
+
     mouseIsDown = false;
     
     if (currentControlMode === 'joystick') {
         joystick.end();
     }
-    // تو حالت کلیک، با رها کردن ماوس هم هدف پاک نمیشه
-    // بازیکن به حرکت ادامه میده تا به هدف برسه
 });
 
 // لمس
 canvas.addEventListener('touchstart', (e) => {
     e.preventDefault();
+    const { x, y } = getCanvasCoords(e);
     
-    // اگر در حالت تنظیم موقعیت هستیم
-    if (settingPositionMode) {
-        const { x, y } = getCanvasCoords(e);
-        joystick.setPosition(x, y);
-        window.updatePositionDisplay(x, y);
-        settingPositionMode = false;
-        canvas.style.cursor = '';
+    // اولویت با حالت درگ موقعیت
+    if (isDraggingPositionMode) {
+        if (joystick.startDragging(x, y)) {
+            isDraggingJoystick = true;
+        }
         return;
     }
 
-    const { x, y } = getCanvasCoords(e);
-    
     if (currentControlMode === 'joystick') {
         joystick.startJoystick(x, y);
     } else {
-        // حالت کلیک: فقط هدف رو تنظیم کن
         joystick.startClick(x, y);
         player.setTarget(x, y);
     }
@@ -131,10 +147,14 @@ canvas.addEventListener('touchstart', (e) => {
 
 canvas.addEventListener('touchmove', (e) => {
     e.preventDefault();
-    if (settingPositionMode) return;
-    
     const { x, y } = getCanvasCoords(e);
     
+    // حالت درگ موقعیت
+    if (isDraggingPositionMode && isDraggingJoystick) {
+        joystick.moveDragging(x, y);
+        return;
+    }
+
     if (currentControlMode === 'joystick') {
         joystick.moveJoystick(x, y);
     } else {
@@ -145,44 +165,55 @@ canvas.addEventListener('touchmove', (e) => {
 
 canvas.addEventListener('touchend', (e) => {
     e.preventDefault();
-    if (settingPositionMode) return;
     
+    // پایان درگ موقعیت
+    if (isDraggingPositionMode && isDraggingJoystick) {
+        isDraggingJoystick = false;
+        return;
+    }
+
     if (currentControlMode === 'joystick') {
         joystick.end();
     }
-    // تو حالت کلیک، هدف حفظ میشه
 });
 
 canvas.addEventListener('touchcancel', (e) => {
     e.preventDefault();
-    if (settingPositionMode) return;
     
+    if (isDraggingPositionMode) {
+        isDraggingJoystick = false;
+        return;
+    }
+
     if (currentControlMode === 'joystick') {
         joystick.end();
     }
 });
 
 function update() {
+    if (isDraggingPositionMode) return; // تو حالت درگ، بازیکن حرکت نکنه
+
     if (currentControlMode === 'joystick') {
         const movement = joystick.getMovement();
         if (movement) {
             player.moveWithJoystick(movement.angle, movement.intensity);
         }
     } else {
-        // تو حالت کلیک، همیشه آپدیت میشه (حتی بدون نگه داشتن ماوس)
         player.update();
     }
 }
 
 function draw() {
     ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
-    player.draw(ctx);
     
-    // تو حالت تنظیم موقعیت، جوی‌استیک رو هم نشون بده
-    if (settingPositionMode || currentControlMode === 'joystick') {
-        joystick.draw(ctx, 'joystick');
-    } else if (currentControlMode === 'click' && mouseIsDown) {
-        joystick.draw(ctx, 'click');
+    if (isDraggingPositionMode) {
+        // تو حالت درگ، فقط جوی‌استیک رو با استایل خاص نشون بده
+        joystick.draw(ctx, 'joystick', true);
+        // بازیکن رو هم نشون بده ولی حرکت نکنه
+        player.draw(ctx);
+    } else {
+        player.draw(ctx);
+        joystick.draw(ctx, currentControlMode);
     }
 }
 

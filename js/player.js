@@ -1,20 +1,21 @@
 class Player {
-    constructor(canvas) {
-        this.canvas = canvas;
+    constructor(world) {
+        this.world = world;
         this.size = 40;
         this.speed = 5;
         this.targetX = null;
         this.targetY = null;
-        this.controlMode = 'joystick'; // 'joystick' یا 'click'
+        this.controlMode = 'joystick';
         
-        // موقعیت اولیه: وسط صفحه
-        this.x = canvas.width / 2 - this.size / 2;
-        this.y = canvas.height / 2 - this.size / 2;
+        // شروع از وسط دنیا
+        this.x = world.width / 2 - this.size / 2;
+        this.y = world.height / 2 - this.size / 2;
     }
 
     updatePositionOnResize() {
-        this.x = this.canvas.width / 2 - this.size / 2;
-        this.y = this.canvas.height / 2 - this.size / 2;
+        // وسط دنیا
+        this.x = this.world.width / 2 - this.size / 2;
+        this.y = this.world.height / 2 - this.size / 2;
         this.targetX = null;
         this.targetY = null;
     }
@@ -24,7 +25,6 @@ class Player {
         this.stop();
     }
 
-    // حرکت با جوی‌استیک
     moveWithJoystick(angle, intensity) {
         this.targetX = null;
         this.targetY = null;
@@ -33,9 +33,9 @@ class Player {
         this.clamp();
     }
 
-    // تنظیم هدف برای حالت کلیک
     setTarget(x, y) {
         if (this.controlMode !== 'click') return;
+        // تبدیل مختصات صفحه به مختصات دنیا
         this.targetX = x - this.size / 2;
         this.targetY = y - this.size / 2;
     }
@@ -46,8 +46,9 @@ class Player {
     }
 
     clamp() {
-        this.x = Math.max(0, Math.min(this.canvas.width - this.size, this.x));
-        this.y = Math.max(0, Math.min(this.canvas.height - this.size, this.y));
+        const clamped = this.world.clampPosition(this.x, this.y, this.size);
+        this.x = clamped.x;
+        this.y = clamped.y;
     }
 
     update() {
@@ -70,12 +71,17 @@ class Player {
         }
     }
 
-    draw(ctx) {
-        // خط راهنما در حالت کلیک
+    draw(ctx, camera) {
+        const screenX = this.x - camera.x;
+        const screenY = this.y - camera.y;
+        
         if (this.controlMode === 'click' && this.targetX !== null && this.targetY !== null) {
+            const targetScreenX = this.targetX - camera.x;
+            const targetScreenY = this.targetY - camera.y;
+            
             ctx.beginPath();
-            ctx.moveTo(this.x + this.size / 2, this.y + this.size / 2);
-            ctx.lineTo(this.targetX + this.size / 2, this.targetY + this.size / 2);
+            ctx.moveTo(screenX + this.size / 2, screenY + this.size / 2);
+            ctx.lineTo(targetScreenX + this.size / 2, targetScreenY + this.size / 2);
             ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
             ctx.lineWidth = 2;
             ctx.setLineDash([5, 5]);
@@ -83,16 +89,15 @@ class Player {
             ctx.setLineDash([]);
             
             ctx.beginPath();
-            ctx.arc(this.targetX + this.size / 2, this.targetY + this.size / 2, 5, 0, Math.PI * 2);
+            ctx.arc(targetScreenX + this.size / 2, targetScreenY + this.size / 2, 5, 0, Math.PI * 2);
             ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
             ctx.fill();
         }
 
-        // رسم مربع
         ctx.fillStyle = '#00d2ff';
         ctx.shadowColor = '#00d2ff';
         ctx.shadowBlur = 15;
-        ctx.fillRect(this.x, this.y, this.size, this.size);
+        ctx.fillRect(screenX, screenY, this.size, this.size);
         ctx.shadowBlur = 0;
         ctx.shadowColor = 'transparent';
     }

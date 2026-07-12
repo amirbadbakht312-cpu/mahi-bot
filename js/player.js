@@ -10,14 +10,13 @@ class Player {
         this.x = world.width / 2 - this.size / 2;
         this.y = world.height / 2 - this.size / 2;
         
-        // جهت حرکت: 'up', 'down', 'idle'
-        this.direction = 'idle';
+        this.direction = 'idle'; // 'up', 'down', 'idle'
         
         // وضعیت انیمیشن قدم زدن
         this.isWalking = false;
-        this.walkFrame = 0; // 0, 1, 2 برای سه فریم
+        this.walkFrame = 0;
         this.walkTimer = 0;
-        this.walkInterval = 100; // 0.1 ثانیه به میلی‌ثانیه
+        this.walkInterval = 100; // 0.1 ثانیه
         
         // عکس‌ها
         this.imageUp = new Image();
@@ -40,7 +39,6 @@ class Player {
         this.imageDown3Loaded = false;
         this.imageDown3.onload = () => { this.imageDown3Loaded = true; };
         
-        // عکس پیش‌فرض (وقتی حرکت نمی‌کنه)
         this.imageIdle = new Image();
         this.imageIdle.src = 'assets/images/pangnafasdam.jpeg';
         this.imageIdleLoaded = false;
@@ -63,31 +61,32 @@ class Player {
         this.targetX = null;
         this.targetY = null;
         
-        // فقط حرکت عمودی (بالا یا پایین)
-        // زاویه بین -PI/2 تا PI/2 یعنی پایین، بقیه یعنی بالا
-        const sinAngle = Math.sin(angle);
+        if (intensity < 0.05) {
+            this.stopWalking();
+            return;
+        }
         
-        if (sinAngle > 0.1) {
-            // حرکت به پایین
-            this.direction = 'down';
-            this.y += this.speed * intensity;
-            this.startWalking();
-        } else if (sinAngle < -0.1) {
-            // حرکت به بالا
+        // حرکت در همه جهات
+        this.x += Math.cos(angle) * this.speed * intensity;
+        this.y += Math.sin(angle) * this.speed * intensity;
+        
+        // تشخیص جهت: اگر یک دهم بالای خط افق باشه = بالا، در غیر اینصورت = پایین
+        // sin(angle) > 0 یعنی پایین، sin(angle) < 0 یعنی بالا
+        if (Math.sin(angle) < -0.1) {
+            // حرکت به سمت بالا
             this.direction = 'up';
-            this.y -= this.speed * intensity;
-            this.startWalking();
+        } else if (Math.sin(angle) > 0.1) {
+            // حرکت به سمت پایین
+            this.direction = 'down';
         } else {
-            // حرکت افقی خیلی کم - می‌تونیم ایستاده بمونیم
-            // اما اگه intensity زیاده، شاید یه مقدار حرکت عمودی داره
-            if (intensity > 0.3) {
-                // حرکت خیلی کم عمودی
+            // حرکت افقی - می‌تونیم جهت قبلی رو نگه داریم یا idle
+            // اگه قبلاً در حال حرکت بوده، جهت قبلی حفظ میشه
+            if (!this.isWalking) {
                 this.direction = 'idle';
-            } else {
-                this.stopWalking();
             }
         }
         
+        this.startWalking();
         this.clamp();
     }
 
@@ -107,6 +106,12 @@ class Player {
         const clamped = this.world.clampPosition(this.x, this.y, this.size);
         this.x = clamped.x;
         this.y = clamped.y;
+        
+        // اگه به لبه خوردیم و نمی‌تونیم حرکت کنیم، انیمیشن رو متوقف کن
+        if ((this.x <= 0 || this.x >= this.world.width - this.size) &&
+            (this.y <= 0 || this.y >= this.world.height - this.size)) {
+            // فقط اگه کاملاً گیر کرده باشیم
+        }
     }
 
     startWalking() {
@@ -148,17 +153,22 @@ class Player {
                 return;
             }
 
-            // فقط حرکت عمودی
-            if (dy > 0) {
-                this.direction = 'down';
-                this.y += this.speed;
-                this.startWalking();
-            } else if (dy < 0) {
+            const angle = Math.atan2(dy, dx);
+            this.x += Math.cos(angle) * this.speed;
+            this.y += Math.sin(angle) * this.speed;
+            
+            // تشخیص جهت برای کلیک
+            if (Math.sin(angle) < -0.1) {
                 this.direction = 'up';
-                this.y -= this.speed;
-                this.startWalking();
+            } else if (Math.sin(angle) > 0.1) {
+                this.direction = 'down';
+            } else {
+                if (!this.isWalking) {
+                    this.direction = 'idle';
+                }
             }
             
+            this.startWalking();
             this.clamp();
         }
     }
@@ -199,11 +209,16 @@ class Player {
             } else if (this.walkFrame === 2 && this.imageDown3Loaded) {
                 imageToDraw = this.imageDown3;
             }
-        } else if (this.direction === 'idle') {
+        } else if (this.direction === 'idle' || !this.isWalking) {
             // ایستاده
             if (this.imageIdleLoaded) {
                 imageToDraw = this.imageIdle;
             }
+        }
+
+        // اگه هیچ عکسی انتخاب نشد، عکس ایستاده رو نشون بده
+        if (!imageToDraw && this.imageIdleLoaded) {
+            imageToDraw = this.imageIdle;
         }
 
         // رسم عکس یا مربع پیش‌فرض
@@ -223,4 +238,4 @@ class Player {
             ctx.shadowColor = 'transparent';
         }
     }
-    }
+}

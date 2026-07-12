@@ -6,20 +6,35 @@ class Joystick {
         this.active = false;
         this.dx = 0;
         this.dy = 0;
-        this.centerX = 0;
-        this.centerY = 0;
+        this.centerX = 100;
+        this.centerY = canvas.height / 2;
         
-        this.updatePosition();
+        // برای حالت کلیک
+        this.startX = 0;
+        this.startY = 0;
+        this.currentX = 0;
+        this.currentY = 0;
     }
 
-    // بروزرسانی موقعیت جوی‌استیک بر اساس سایز صفحه
     updatePosition() {
-        this.centerX = this.radius + 40;
-        this.centerY = this.canvas.height / 2;
+        // موقعیت به‌روزرسانی می‌شود چون canvas.height ممکن است تغییر کند
+        if (this.centerY === 0) {
+            this.centerY = this.canvas.height / 2;
+        }
     }
 
-    // شروع کنترل: بررسی می‌کند که نقطه شروع داخل دایره باشد
-    start(x, y) {
+    setSize(size) {
+        this.radius = size;
+        this.maxDist = size - 10;
+    }
+
+    setPosition(x, y) {
+        this.centerX = x;
+        this.centerY = y;
+    }
+
+    // حالت جوی‌استیک
+    startJoystick(x, y) {
         const distToCenter = Math.hypot(x - this.centerX, y - this.centerY);
         if (distToCenter <= this.radius) {
             this.active = true;
@@ -29,20 +44,11 @@ class Joystick {
         return false;
     }
 
-    // بروزرسانی موقعیت دسته جوی‌استیک
-    move(x, y) {
+    moveJoystick(x, y) {
         if (!this.active) return;
         this.updateStickPosition(x, y);
     }
 
-    // پایان کنترل
-    end() {
-        this.active = false;
-        this.dx = 0;
-        this.dy = 0;
-    }
-
-    // محاسبه موقعیت دسته نسبت به مرکز
     updateStickPosition(x, y) {
         let dx = x - this.centerX;
         let dy = y - this.centerY;
@@ -58,18 +64,48 @@ class Joystick {
         this.dy = dy;
     }
 
-    // دریافت زاویه و شدت حرکت
     getMovement() {
         if (!this.active) return null;
-        
         const intensity = Math.min(1, Math.hypot(this.dx, this.dy) / this.maxDist);
         const angle = Math.atan2(this.dy, this.dx);
-        
         return { angle, intensity };
     }
 
-    // رسم جوی‌استیک
-    draw(ctx) {
+    // حالت کلیک
+    startClick(x, y) {
+        this.active = true;
+        this.startX = x;
+        this.startY = y;
+        this.currentX = x;
+        this.currentY = y;
+    }
+
+    moveClick(x, y) {
+        if (!this.active) return;
+        this.currentX = x;
+        this.currentY = y;
+    }
+
+    getCurrentPosition() {
+        if (!this.active) return null;
+        return { x: this.currentX, y: this.currentY };
+    }
+
+    end() {
+        this.active = false;
+        this.dx = 0;
+        this.dy = 0;
+    }
+
+    draw(ctx, mode) {
+        if (mode === 'joystick') {
+            this.drawJoystick(ctx);
+        } else if (mode === 'click' && this.active) {
+            this.drawClickIndicator(ctx);
+        }
+    }
+
+    drawJoystick(ctx) {
         // دایره بیرونی
         ctx.beginPath();
         ctx.arc(this.centerX, this.centerY, this.radius, 0, Math.PI * 2);
@@ -79,7 +115,7 @@ class Joystick {
         ctx.lineWidth = 2;
         ctx.stroke();
 
-        // دسته جوی‌استیک
+        // دسته
         if (this.active) {
             const stickX = this.centerX + this.dx;
             const stickY = this.centerY + this.dy;
@@ -95,4 +131,29 @@ class Joystick {
             ctx.fill();
         }
     }
-  }
+
+    drawClickIndicator(ctx) {
+        // دایره شروع
+        ctx.beginPath();
+        ctx.arc(this.startX, this.startY, 30, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // دایره فعلی
+        ctx.beginPath();
+        ctx.arc(this.currentX, this.currentY, 25, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+        ctx.fill();
+
+        // خط
+        ctx.beginPath();
+        ctx.moveTo(this.startX, this.startY);
+        ctx.lineTo(this.currentX, this.currentY);
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+    }
+}

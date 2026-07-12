@@ -1,8 +1,8 @@
 class Player {
     constructor(world) {
         this.world = world;
-        this.size = 100; // دو برابر شده (قبلاً 50 بود)
-        this.speed = 1.67; // یک سوم شده (قبلاً 5 بود)
+        this.size = 100;
+        this.speed = 1.67;
         this.targetX = null;
         this.targetY = null;
         this.controlMode = 'joystick';
@@ -10,16 +10,41 @@ class Player {
         this.x = world.width / 2 - this.size / 2;
         this.y = world.height / 2 - this.size / 2;
         
-        // لود عکس از مسیر جدید
-        this.image = new Image();
-        this.image.src = 'assets/images/pangnafasdam.jpeg';
-        this.imageLoaded = false;
-        this.image.onload = () => { 
-            this.imageLoaded = true; 
-        };
-        this.image.onerror = () => { 
-            this.imageLoaded = false; 
-        };
+        // جهت حرکت: 'up', 'down', 'idle'
+        this.direction = 'idle';
+        
+        // وضعیت انیمیشن قدم زدن
+        this.isWalking = false;
+        this.walkFrame = 0; // 0, 1, 2 برای سه فریم
+        this.walkTimer = 0;
+        this.walkInterval = 100; // 0.1 ثانیه به میلی‌ثانیه
+        
+        // عکس‌ها
+        this.imageUp = new Image();
+        this.imageUp.src = 'assets/images/pangghadamposht.jpeg';
+        this.imageUpLoaded = false;
+        this.imageUp.onload = () => { this.imageUpLoaded = true; };
+        
+        this.imageDown1 = new Image();
+        this.imageDown1.src = 'assets/images/pangghadamposht1.jpeg';
+        this.imageDown1Loaded = false;
+        this.imageDown1.onload = () => { this.imageDown1Loaded = true; };
+        
+        this.imageDown2 = new Image();
+        this.imageDown2.src = 'assets/images/pangghadamposht2.jpeg';
+        this.imageDown2Loaded = false;
+        this.imageDown2.onload = () => { this.imageDown2Loaded = true; };
+        
+        this.imageDown3 = new Image();
+        this.imageDown3.src = 'assets/images/pangghadamposht3.jpeg';
+        this.imageDown3Loaded = false;
+        this.imageDown3.onload = () => { this.imageDown3Loaded = true; };
+        
+        // عکس پیش‌فرض (وقتی حرکت نمی‌کنه)
+        this.imageIdle = new Image();
+        this.imageIdle.src = 'assets/images/pangnafasdam.jpeg';
+        this.imageIdleLoaded = false;
+        this.imageIdle.onload = () => { this.imageIdleLoaded = true; };
     }
 
     updatePositionOnResize() {
@@ -37,8 +62,32 @@ class Player {
     moveWithJoystick(angle, intensity) {
         this.targetX = null;
         this.targetY = null;
-        this.x += Math.cos(angle) * this.speed * intensity;
-        this.y += Math.sin(angle) * this.speed * intensity;
+        
+        // فقط حرکت عمودی (بالا یا پایین)
+        // زاویه بین -PI/2 تا PI/2 یعنی پایین، بقیه یعنی بالا
+        const sinAngle = Math.sin(angle);
+        
+        if (sinAngle > 0.1) {
+            // حرکت به پایین
+            this.direction = 'down';
+            this.y += this.speed * intensity;
+            this.startWalking();
+        } else if (sinAngle < -0.1) {
+            // حرکت به بالا
+            this.direction = 'up';
+            this.y -= this.speed * intensity;
+            this.startWalking();
+        } else {
+            // حرکت افقی خیلی کم - می‌تونیم ایستاده بمونیم
+            // اما اگه intensity زیاده، شاید یه مقدار حرکت عمودی داره
+            if (intensity > 0.3) {
+                // حرکت خیلی کم عمودی
+                this.direction = 'idle';
+            } else {
+                this.stopWalking();
+            }
+        }
+        
         this.clamp();
     }
 
@@ -51,6 +100,7 @@ class Player {
     stop() {
         this.targetX = null;
         this.targetY = null;
+        this.stopWalking();
     }
 
     clamp() {
@@ -59,7 +109,33 @@ class Player {
         this.y = clamped.y;
     }
 
+    startWalking() {
+        if (!this.isWalking) {
+            this.isWalking = true;
+            this.walkFrame = 0;
+            this.walkTimer = 0;
+        }
+    }
+
+    stopWalking() {
+        this.isWalking = false;
+        this.walkFrame = 0;
+        this.walkTimer = 0;
+        this.direction = 'idle';
+    }
+
     update() {
+        // بروزرسانی انیمیشن قدم زدن
+        if (this.isWalking) {
+            this.walkTimer += 16.67; // تقریباً 60fps
+            
+            if (this.walkTimer >= this.walkInterval) {
+                this.walkTimer = 0;
+                this.walkFrame = (this.walkFrame + 1) % 3;
+            }
+        }
+
+        // حرکت در حالت کلیک
         if (this.controlMode === 'click' && this.targetX !== null && this.targetY !== null) {
             const dx = this.targetX - this.x;
             const dy = this.targetY - this.y;
@@ -72,9 +148,17 @@ class Player {
                 return;
             }
 
-            const angle = Math.atan2(dy, dx);
-            this.x += Math.cos(angle) * this.speed;
-            this.y += Math.sin(angle) * this.speed;
+            // فقط حرکت عمودی
+            if (dy > 0) {
+                this.direction = 'down';
+                this.y += this.speed;
+                this.startWalking();
+            } else if (dy < 0) {
+                this.direction = 'up';
+                this.y -= this.speed;
+                this.startWalking();
+            }
+            
             this.clamp();
         }
     }
@@ -98,13 +182,36 @@ class Player {
             ctx.stroke();
         }
 
+        // انتخاب عکس بر اساس جهت و انیمیشن
+        let imageToDraw = null;
+        
+        if (this.direction === 'up') {
+            // حرکت به بالا - عکس پشت
+            if (this.imageUpLoaded) {
+                imageToDraw = this.imageUp;
+            }
+        } else if (this.direction === 'down' && this.isWalking) {
+            // حرکت به پایین - انیمیشن قدم زدن
+            if (this.walkFrame === 0 && this.imageDown1Loaded) {
+                imageToDraw = this.imageDown1;
+            } else if (this.walkFrame === 1 && this.imageDown2Loaded) {
+                imageToDraw = this.imageDown2;
+            } else if (this.walkFrame === 2 && this.imageDown3Loaded) {
+                imageToDraw = this.imageDown3;
+            }
+        } else if (this.direction === 'idle') {
+            // ایستاده
+            if (this.imageIdleLoaded) {
+                imageToDraw = this.imageIdle;
+            }
+        }
+
         // رسم عکس یا مربع پیش‌فرض
-        if (this.imageLoaded) {
-            // رسم عکس با سایز دقیق
+        if (imageToDraw) {
             ctx.save();
             ctx.imageSmoothingEnabled = true;
             ctx.imageSmoothingQuality = 'high';
-            ctx.drawImage(this.image, screenX, screenY, this.size, this.size);
+            ctx.drawImage(imageToDraw, screenX, screenY, this.size, this.size);
             ctx.restore();
         } else {
             // مربع پیش‌فرض

@@ -17,9 +17,7 @@ class Joystick {
     }
 
     updatePosition() {
-        if (this.centerY === 0) {
-            this.centerY = this.canvas.height / 2;
-        }
+        this.centerY = this.canvas.height / 2;
     }
 
     setSize(size) {
@@ -147,7 +145,6 @@ class Joystick {
         if (this.active && !isDraggingMode) {
             const stickX = this.centerX + this.dx;
             const stickY = this.centerY + this.dy;
-            
             ctx.beginPath();
             ctx.arc(stickX, stickY, 25, 0, Math.PI * 2);
             ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';

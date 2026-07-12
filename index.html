@@ -61,10 +61,6 @@
             transform: scale(1.05);
         }
 
-        #settingsBtn:active {
-            transform: scale(0.95);
-        }
-
         /* پنل تنظیمات */
         #settingsPanel {
             position: absolute;
@@ -210,23 +206,58 @@
             background: rgba(0, 210, 255, 0.3);
         }
 
-        #setPositionBtn.active {
-            background: rgba(255, 100, 100, 0.3);
-            border-color: rgba(255, 100, 100, 0.6);
-            color: #ff6464;
-            animation: pulse 1s infinite;
-        }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.7; }
-        }
-
         .position-info {
             text-align: center;
             margin-top: 8px;
             font-size: 12px;
             color: rgba(255, 255, 255, 0.6);
+        }
+
+        /* دکمه تأیید موقعیت (بیرون از پنل) */
+        #confirmPositionBtn {
+            position: absolute;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 15px 40px;
+            background: rgba(0, 210, 255, 0.9);
+            border: none;
+            border-radius: 25px;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            z-index: 1001;
+            display: none;
+            animation: bounceIn 0.5s ease-out;
+            box-shadow: 0 5px 20px rgba(0, 210, 255, 0.4);
+        }
+
+        #confirmPositionBtn:hover {
+            background: rgba(0, 210, 255, 1);
+            transform: translateX(-50%) scale(1.05);
+        }
+
+        @keyframes bounceIn {
+            0% { transform: translateX(-50%) scale(0); }
+            50% { transform: translateX(-50%) scale(1.1); }
+            100% { transform: translateX(-50%) scale(1); }
+        }
+
+        /* راهنمای متنی */
+        #dragHint {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 14px;
+            z-index: 1001;
+            display: none;
+            pointer-events: none;
         }
     </style>
 </head>
@@ -236,6 +267,7 @@
         
         <button id="settingsBtn" title="تنظیمات">🔧</button>
         
+        <!-- پنل تنظیمات -->
         <div id="settingsPanel">
             <h3>⚙️ تنظیمات کنترل</h3>
             
@@ -259,12 +291,18 @@
                 <div class="range-value" id="sizeValue">60px</div>
 
                 <label style="margin-top: 15px;">موقعیت دایره:</label>
-                <button id="setPositionBtn">📍 انتخاب موقعیت روی صفحه</button>
+                <button id="setPositionBtn">📍 بکش و رها کن روی صفحه</button>
                 <div class="position-info" id="positionInfo">
-                    موقعیت فعلی: X: <span id="posX">100</span>, Y: <span id="posY">وسط</span>
+                    موقعیت: X: <span id="posX">100</span>, Y: <span id="posY">وسط</span>
                 </div>
             </div>
         </div>
+
+        <!-- دکمه تأیید (بیرون از پنل) -->
+        <button id="confirmPositionBtn">✓ تأیید موقعیت</button>
+        
+        <!-- راهنما -->
+        <div id="dragHint">👇 دایره رو بکش هرجا خواستی، بعد تأیید کن</div>
     </div>
 
     <script src="js/player.js"></script>
@@ -279,10 +317,12 @@
         const joystickSizeSlider = document.getElementById('joystickSize');
         const sizeValue = document.getElementById('sizeValue');
         const setPositionBtn = document.getElementById('setPositionBtn');
+        const confirmPositionBtn = document.getElementById('confirmPositionBtn');
+        const dragHint = document.getElementById('dragHint');
         const posXSpan = document.getElementById('posX');
         const posYSpan = document.getElementById('posY');
         
-        let isSettingPosition = false;
+        let isDraggingPosition = false;
 
         settingsBtn.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -318,30 +358,47 @@
             window.setJoystickSize(size);
         });
 
-        // دکمه تنظیم موقعیت
+        // دکمه تنظیم موقعیت - بستن پنل و شروع حالت درگ
         setPositionBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            isSettingPosition = !isSettingPosition;
+            isDraggingPosition = true;
             
-            if (isSettingPosition) {
-                setPositionBtn.textContent = '🎯 روی صفحه نقطه مورد نظر رو بزن...';
-                setPositionBtn.classList.add('active');
-                window.startSettingPosition();
-            } else {
-                setPositionBtn.textContent = '📍 انتخاب موقعیت روی صفحه';
-                setPositionBtn.classList.remove('active');
-                window.cancelSettingPosition();
-            }
+            // بستن پنل تنظیمات
+            settingsPanel.classList.remove('active');
+            
+            // نمایش دکمه تأیید و راهنما
+            confirmPositionBtn.style.display = 'block';
+            dragHint.style.display = 'block';
+            
+            // مخفی کردن راهنما بعد از ۳ ثانیه
+            setTimeout(() => {
+                dragHint.style.display = 'none';
+            }, 3000);
+            
+            // فعال کردن حالت درگ
+            window.startDraggingPosition();
         });
 
-        // دریافت موقعیت جدید از game.js
-        window.updatePositionDisplay = (x, y) => {
-            posXSpan.textContent = Math.round(x);
-            posYSpan.textContent = Math.round(y);
-            isSettingPosition = false;
-            setPositionBtn.textContent = '📍 انتخاب موقعیت روی صفحه';
-            setPositionBtn.classList.remove('active');
-        };
+        // دکمه تأیید - برگشت به تنظیمات
+        confirmPositionBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            isDraggingPosition = false;
+            
+            // مخفی کردن دکمه تأیید و راهنما
+            confirmPositionBtn.style.display = 'none';
+            dragHint.style.display = 'none';
+            
+            // برگشت به پنل تنظیمات
+            settingsPanel.classList.add('active');
+            
+            // پایان حالت درگ
+            window.confirmPosition();
+            
+            // بروزرسانی نمایش موقعیت
+            const pos = window.getJoystickPosition();
+            posXSpan.textContent = Math.round(pos.x);
+            posYSpan.textContent = Math.round(pos.y);
+        });
     </script>
 </body>
 </html>

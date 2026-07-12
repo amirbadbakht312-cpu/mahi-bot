@@ -238,4 +238,4 @@ class Player {
             ctx.shadowColor = 'transparent';
         }
     }
-}
+                    }

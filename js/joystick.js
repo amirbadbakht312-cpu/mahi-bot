@@ -9,15 +9,14 @@ class Joystick {
         this.centerX = 100;
         this.centerY = canvas.height / 2;
         
-        // برای حالت کلیک
         this.startX = 0;
         this.startY = 0;
         this.currentX = 0;
         this.currentY = 0;
+        this.isDragging = false;
     }
 
     updatePosition() {
-        // موقعیت به‌روزرسانی می‌شود چون canvas.height ممکن است تغییر کند
         if (this.centerY === 0) {
             this.centerY = this.canvas.height / 2;
         }
@@ -33,7 +32,30 @@ class Joystick {
         this.centerY = y;
     }
 
-    // حالت جوی‌استیک
+    getPosition() {
+        return { x: this.centerX, y: this.centerY };
+    }
+
+    startDragging(x, y) {
+        this.isDragging = false;
+        const dist = Math.hypot(x - this.centerX, y - this.centerY);
+        if (dist <= this.radius + 20) {
+            this.isDragging = true;
+            return true;
+        }
+        return false;
+    }
+
+    moveDragging(x, y) {
+        if (!this.isDragging) return;
+        this.centerX = x;
+        this.centerY = y;
+    }
+
+    endDragging() {
+        this.isDragging = false;
+    }
+
     startJoystick(x, y) {
         const distToCenter = Math.hypot(x - this.centerX, y - this.centerY);
         if (distToCenter <= this.radius) {
@@ -71,7 +93,6 @@ class Joystick {
         return { angle, intensity };
     }
 
-    // حالت کلیک
     startClick(x, y) {
         this.active = true;
         this.startX = x;
@@ -97,26 +118,33 @@ class Joystick {
         this.dy = 0;
     }
 
-    draw(ctx, mode) {
+    draw(ctx, mode, isDraggingMode = false) {
         if (mode === 'joystick') {
-            this.drawJoystick(ctx);
+            this.drawJoystick(ctx, isDraggingMode);
         } else if (mode === 'click' && this.active) {
             this.drawClickIndicator(ctx);
         }
     }
 
-    drawJoystick(ctx) {
-        // دایره بیرونی
+    drawJoystick(ctx, isDraggingMode = false) {
         ctx.beginPath();
         ctx.arc(this.centerX, this.centerY, this.radius, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+        
+        if (isDraggingMode) {
+            const pulse = Math.sin(Date.now() / 300) * 0.1 + 0.2;
+            ctx.fillStyle = `rgba(255, 200, 0, ${pulse})`;
+            ctx.strokeStyle = 'rgba(255, 200, 0, 0.8)';
+            ctx.lineWidth = 3;
+        } else {
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+            ctx.lineWidth = 2;
+        }
+        
         ctx.fill();
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
-        ctx.lineWidth = 2;
         ctx.stroke();
 
-        // دسته
-        if (this.active) {
+        if (this.active && !isDraggingMode) {
             const stickX = this.centerX + this.dx;
             const stickY = this.centerY + this.dy;
             
@@ -126,14 +154,13 @@ class Joystick {
             ctx.fill();
         } else {
             ctx.beginPath();
-            ctx.arc(this.centerX, this.centerY, 20, 0, Math.PI * 2);
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+            ctx.arc(this.centerX, this.centerY, isDraggingMode ? 25 : 20, 0, Math.PI * 2);
+            ctx.fillStyle = isDraggingMode ? 'rgba(255, 200, 0, 0.9)' : 'rgba(255, 255, 255, 0.5)';
             ctx.fill();
         }
     }
 
     drawClickIndicator(ctx) {
-        // دایره شروع
         ctx.beginPath();
         ctx.arc(this.startX, this.startY, 30, 0, Math.PI * 2);
         ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
@@ -142,13 +169,11 @@ class Joystick {
         ctx.lineWidth = 2;
         ctx.stroke();
 
-        // دایره فعلی
         ctx.beginPath();
         ctx.arc(this.currentX, this.currentY, 25, 0, Math.PI * 2);
         ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
         ctx.fill();
 
-        // خط
         ctx.beginPath();
         ctx.moveTo(this.startX, this.startY);
         ctx.lineTo(this.currentX, this.currentY);

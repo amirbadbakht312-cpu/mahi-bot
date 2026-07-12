@@ -6,7 +6,6 @@ let isDraggingPositionMode = false;
 let isDraggingJoystick = false;
 let mouseIsDown = false;
 
-// ایجاد اشیاء به ترتیب
 const world = new World();
 const camera = new Camera(world);
 const player = new Player(world);
@@ -30,11 +29,11 @@ function resizeEverything() {
 
 window.addEventListener('resize', resizeEverything);
 
-// توابع عمومی
 window.setControlMode = (mode) => {
     currentControlMode = mode;
     player.setControlMode(mode);
     mouseIsDown = false;
+    joystick.end();
 };
 
 window.setJoystickSize = (size) => joystick.setSize(size);
@@ -64,7 +63,7 @@ function getCanvasCoords(e) {
     };
 }
 
-// ماوس
+// رویدادهای ماوس
 canvas.addEventListener('mousedown', (e) => {
     const { x, y } = getCanvasCoords(e);
     
@@ -79,8 +78,6 @@ canvas.addEventListener('mousedown', (e) => {
     if (currentControlMode === 'joystick') {
         joystick.startJoystick(x, y);
     } else {
-        joystick.startClick(x, y);
-        // تبدیل مختصات صفحه به دنیا
         player.setTarget(x + camera.x, y + camera.y);
     }
 });
@@ -102,9 +99,6 @@ canvas.addEventListener('mousemove', (e) => {
     
     if (currentControlMode === 'joystick') {
         joystick.moveJoystick(x, y);
-    } else {
-        joystick.moveClick(x, y);
-        player.setTarget(x + camera.x, y + camera.y);
     }
 });
 
@@ -118,10 +112,10 @@ window.addEventListener('mouseup', () => {
     }
 
     mouseIsDown = false;
-    if (currentControlMode === 'joystick') joystick.end();
+    joystick.end();
 });
 
-// لمس
+// رویدادهای لمس
 canvas.addEventListener('touchstart', (e) => {
     e.preventDefault();
     const { x, y } = getCanvasCoords(e);
@@ -134,7 +128,6 @@ canvas.addEventListener('touchstart', (e) => {
     if (currentControlMode === 'joystick') {
         joystick.startJoystick(x, y);
     } else {
-        joystick.startClick(x, y);
         player.setTarget(x + camera.x, y + camera.y);
     }
 }, { passive: false });
@@ -150,9 +143,6 @@ canvas.addEventListener('touchmove', (e) => {
 
     if (currentControlMode === 'joystick') {
         joystick.moveJoystick(x, y);
-    } else {
-        joystick.moveClick(x, y);
-        player.setTarget(x + camera.x, y + camera.y);
     }
 }, { passive: false });
 
@@ -164,7 +154,7 @@ canvas.addEventListener('touchend', (e) => {
         return;
     }
 
-    if (currentControlMode === 'joystick') joystick.end();
+    joystick.end();
 });
 
 canvas.addEventListener('touchcancel', (e) => {
@@ -173,7 +163,7 @@ canvas.addEventListener('touchcancel', (e) => {
         isDraggingJoystick = false;
         return;
     }
-    if (currentControlMode === 'joystick') joystick.end();
+    joystick.end();
 });
 
 function update() {
@@ -188,27 +178,20 @@ function update() {
         player.update();
     }
     
-    // دوربین بازیکن رو دنبال می‌کنه
     camera.follow(player.x, player.y, player.size);
 }
 
 function draw() {
     ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
     
-    // رسم دنیا نسبت به دوربین
     world.draw(ctx, camera);
-    
-    // رسم بازیکن نسبت به دوربین
     player.draw(ctx, camera);
     
-    // رسم جوی‌استیک (همیشه روی صفحه، نه نسبت به دوربین)
-    if (isDraggingPositionMode) {
-        joystick.draw(ctx, 'joystick', true);
-    } else {
-        joystick.draw(ctx, currentControlMode);
+    // رسم جوی‌استیک فقط در حالت جوی‌استیک
+    if (currentControlMode === 'joystick' || isDraggingPositionMode) {
+        joystick.draw(ctx, isDraggingPositionMode);
     }
     
-    // رسم مینی‌مپ
     minimap.draw(ctx, player, camera);
 }
 

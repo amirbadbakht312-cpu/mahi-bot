@@ -1,8 +1,9 @@
 class Player {
-    constructor(world) {
+    constructor(world, assetManager) {
         this.world = world;
+        this.assets = assetManager;
         this.size = 100;
-        this.speed = 1.67;
+        this.speed = 150;
         this.targetX = null;
         this.targetY = null;
         this.controlMode = 'joystick';
@@ -11,38 +12,16 @@ class Player {
         this.y = world.height / 2 - this.size / 2;
         
         this.direction = 'idle'; // 'up', 'down', 'idle'
+        this.lastDirection = 'down'; // پیش‌فرض رو به پایین
         
-        // وضعیت انیمیشن قدم زدن
+        // انیمیشن حرکت به بالا
         this.isWalking = false;
-        this.walkFrame = 0;
+        this.walkFrame = 0; // 0=posht2, 1=posht1, 2=posht3
         this.walkTimer = 0;
-        this.walkInterval = 100; // 0.1 ثانیه
+        this.walkInterval = 100;
         
-        // عکس‌ها
-        this.imageUp = new Image();
-        this.imageUp.src = 'assets/images/pangghadamposht.jpeg';
-        this.imageUpLoaded = false;
-        this.imageUp.onload = () => { this.imageUpLoaded = true; };
-        
-        this.imageDown1 = new Image();
-        this.imageDown1.src = 'assets/images/pangghadamposht1.jpeg';
-        this.imageDown1Loaded = false;
-        this.imageDown1.onload = () => { this.imageDown1Loaded = true; };
-        
-        this.imageDown2 = new Image();
-        this.imageDown2.src = 'assets/images/pangghadamposht2.jpeg';
-        this.imageDown2Loaded = false;
-        this.imageDown2.onload = () => { this.imageDown2Loaded = true; };
-        
-        this.imageDown3 = new Image();
-        this.imageDown3.src = 'assets/images/pangghadamposht3.jpeg';
-        this.imageDown3Loaded = false;
-        this.imageDown3.onload = () => { this.imageDown3Loaded = true; };
-        
-        this.imageIdle = new Image();
-        this.imageIdle.src = 'assets/images/pangnafasdam.jpeg';
-        this.imageIdleLoaded = false;
-        this.imageIdle.onload = () => { this.imageIdleLoaded = true; };
+        // ترتیب فریم‌ها برای حرکت به بالا: 2 -> 1 -> 3 -> 2 -> 1 -> 3
+        this.upFrames = ['up2', 'up1', 'up3'];
     }
 
     updatePositionOnResize() {
@@ -57,7 +36,7 @@ class Player {
         this.stop();
     }
 
-    moveWithJoystick(angle, intensity) {
+    moveWithJoystick(angle, intensity, dt) {
         this.targetX = null;
         this.targetY = null;
         
@@ -66,25 +45,19 @@ class Player {
             return;
         }
         
-        // حرکت در همه جهات
-        this.x += Math.cos(angle) * this.speed * intensity;
-        this.y += Math.sin(angle) * this.speed * intensity;
+        const dx = Math.cos(angle) * this.speed * intensity * dt;
+        const dy = Math.sin(angle) * this.speed * intensity * dt;
         
-        // تشخیص جهت: اگر یک دهم بالای خط افق باشه = بالا، در غیر اینصورت = پایین
-        // sin(angle) > 0 یعنی پایین، sin(angle) < 0 یعنی بالا
-        if (Math.sin(angle) < -0.1) {
-            // حرکت به سمت بالا
+        this.x += dx;
+        this.y += dy;
+        
+        // تشخیص جهت: اگر زاویه به سمت بالا باشه (sin منفی)
+        if (Math.sin(angle) < -0.05) {
             this.direction = 'up';
-        } else if (Math.sin(angle) > 0.1) {
-            // حرکت به سمت پایین
+        } else if (Math.sin(angle) > 0.05) {
             this.direction = 'down';
-        } else {
-            // حرکت افقی - می‌تونیم جهت قبلی رو نگه داریم یا idle
-            // اگه قبلاً در حال حرکت بوده، جهت قبلی حفظ میشه
-            if (!this.isWalking) {
-                this.direction = 'idle';
-            }
         }
+        // حرکت کاملاً افقی: جهت قبلی حفظ میشه
         
         this.startWalking();
         this.clamp();
@@ -103,21 +76,14 @@ class Player {
     }
 
     clamp() {
-        const clamped = this.world.clampPosition(this.x, this.y, this.size);
-        this.x = clamped.x;
-        this.y = clamped.y;
-        
-        // اگه به لبه خوردیم و نمی‌تونیم حرکت کنیم، انیمیشن رو متوقف کن
-        if ((this.x <= 0 || this.x >= this.world.width - this.size) &&
-            (this.y <= 0 || this.y >= this.world.height - this.size)) {
-            // فقط اگه کاملاً گیر کرده باشیم
-        }
+        this.x = Math.max(0, Math.min(this.world.width - this.size, this.x));
+        this.y = Math.max(0, Math.min(this.world.height - this.size, this.y));
     }
 
     startWalking() {
         if (!this.isWalking) {
             this.isWalking = true;
-            this.walkFrame = 0;
+            this.walkFrame = 0; // شروع از posht2
             this.walkTimer = 0;
         }
     }
@@ -126,17 +92,17 @@ class Player {
         this.isWalking = false;
         this.walkFrame = 0;
         this.walkTimer = 0;
-        this.direction = 'idle';
     }
 
-    update() {
-        // بروزرسانی انیمیشن قدم زدن
-        if (this.isWalking) {
-            this.walkTimer += 16.67; // تقریباً 60fps
+    update(dt) {
+        // انیمیشن با deltaTime
+        if (this.isWalking && this.direction === 'up') {
+            // فقط در حرکت به بالا انیمیشن اجرا میشه
+            this.walkTimer += dt * 1000;
             
             if (this.walkTimer >= this.walkInterval) {
-                this.walkTimer = 0;
-                this.walkFrame = (this.walkFrame + 1) % 3;
+                this.walkTimer -= this.walkInterval;
+                this.walkFrame = (this.walkFrame + 1) % 3; // 0->1->2->0->1->2
             }
         }
 
@@ -146,7 +112,7 @@ class Player {
             const dy = this.targetY - this.y;
             const distance = Math.hypot(dx, dy);
 
-            if (distance < this.speed) {
+            if (distance < this.speed * dt) {
                 this.x = this.targetX;
                 this.y = this.targetY;
                 this.stop();
@@ -154,22 +120,25 @@ class Player {
             }
 
             const angle = Math.atan2(dy, dx);
-            this.x += Math.cos(angle) * this.speed;
-            this.y += Math.sin(angle) * this.speed;
+            this.x += Math.cos(angle) * this.speed * dt;
+            this.y += Math.sin(angle) * this.speed * dt;
             
-            // تشخیص جهت برای کلیک
-            if (Math.sin(angle) < -0.1) {
+            // تشخیص جهت بر اساس هدف
+            if (dy < -1) {
+                // هدف بالای بازیکنه
                 this.direction = 'up';
-            } else if (Math.sin(angle) > 0.1) {
+            } else if (dy > 1) {
+                // هدف پایین بازیکنه
                 this.direction = 'down';
-            } else {
-                if (!this.isWalking) {
-                    this.direction = 'idle';
-                }
             }
             
             this.startWalking();
             this.clamp();
+        }
+        
+        // وقتی حرکت نمی‌کنه، idle
+        if (!this.isWalking) {
+            this.direction = 'idle';
         }
     }
 
@@ -177,7 +146,7 @@ class Player {
         const screenX = this.x - camera.x;
         const screenY = this.y - camera.y;
         
-        // نمایش نقطه هدف در حالت کلیک
+        // نقطه هدف
         if (this.controlMode === 'click' && this.targetX !== null && this.targetY !== null) {
             const targetScreenX = this.targetX + this.size / 2 - camera.x;
             const targetScreenY = this.targetY + this.size / 2 - camera.y;
@@ -186,47 +155,31 @@ class Player {
             ctx.beginPath();
             ctx.arc(targetScreenX, targetScreenY, 6, 0, Math.PI * 2);
             ctx.fill();
-            
             ctx.strokeStyle = 'rgba(0, 255, 136, 0.5)';
             ctx.lineWidth = 1;
             ctx.stroke();
         }
 
-        // انتخاب عکس بر اساس جهت و انیمیشن
-        let imageToDraw = null;
+        // انتخاب عکس
+        let imageKey = 'front'; // پیش‌فرض pangnafasdam
         
         if (this.direction === 'up') {
-            // حرکت به بالا - عکس پشت
-            if (this.imageUpLoaded) {
-                imageToDraw = this.imageUp;
-            }
-        } else if (this.direction === 'down' && this.isWalking) {
-            // حرکت به پایین - انیمیشن قدم زدن
-            if (this.walkFrame === 0 && this.imageDown1Loaded) {
-                imageToDraw = this.imageDown1;
-            } else if (this.walkFrame === 1 && this.imageDown2Loaded) {
-                imageToDraw = this.imageDown2;
-            } else if (this.walkFrame === 2 && this.imageDown3Loaded) {
-                imageToDraw = this.imageDown3;
-            }
-        } else if (this.direction === 'idle' || !this.isWalking) {
-            // ایستاده
-            if (this.imageIdleLoaded) {
-                imageToDraw = this.imageIdle;
-            }
+            // حرکت به بالا: انیمیشن 2-1-3
+            imageKey = this.upFrames[this.walkFrame];
+        } else if (this.direction === 'down') {
+            // حرکت به پایین: فقط pangnafasdam
+            imageKey = 'front';
+        } else if (this.direction === 'idle') {
+            // ایستاده: pangnafasdam
+            imageKey = 'front';
         }
 
-        // اگه هیچ عکسی انتخاب نشد، عکس ایستاده رو نشون بده
-        if (!imageToDraw && this.imageIdleLoaded) {
-            imageToDraw = this.imageIdle;
-        }
-
-        // رسم عکس یا مربع پیش‌فرض
-        if (imageToDraw) {
+        const image = this.assets.get(imageKey);
+        
+        if (image && this.assets.isLoaded(imageKey)) {
             ctx.save();
-            ctx.imageSmoothingEnabled = true;
-            ctx.imageSmoothingQuality = 'high';
-            ctx.drawImage(imageToDraw, screenX, screenY, this.size, this.size);
+            ctx.imageSmoothingEnabled = false;
+            ctx.drawImage(image, screenX, screenY, this.size, this.size);
             ctx.restore();
         } else {
             // مربع پیش‌فرض
@@ -238,4 +191,4 @@ class Player {
             ctx.shadowColor = 'transparent';
         }
     }
-                    }
+}

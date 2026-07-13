@@ -11,17 +11,25 @@ class Player {
         this.x = world.width / 2 - this.size / 2;
         this.y = world.height / 2 - this.size / 2;
         
-        this.direction = 'idle'; // 'up', 'down', 'idle'
-        this.lastDirection = 'down'; // پیش‌فرض رو به پایین
+        this.direction = 'idle';
+        this.lastDirection = 'down';
         
         // انیمیشن حرکت به بالا
         this.isWalking = false;
-        this.walkFrame = 0; // 0=posht2, 1=posht1, 2=posht3
+        this.walkFrame = 0; // 0=posht2, 1=posht1, 2=posht2 reversed
         this.walkTimer = 0;
         this.walkInterval = 100;
         
-        // ترتیب فریم‌ها برای حرکت به بالا: 2 -> 1 -> 3 -> 2 -> 1 -> 3
-        this.upFrames = ['up2', 'up1', 'up3'];
+        // فریم‌های حرکت به بالا: 2 -> 1 -> 2-reversed -> 2 -> 1 -> 2-reversed
+        this.upFrames = ['up2', 'up1', 'up2_reversed'];
+        
+        // Canvas آف‌اسکرین برای قرینه کردن
+        this.reversedCanvas = document.createElement('canvas');
+        this.reversedCanvas.width = this.size;
+        this.reversedCanvas.height = this.size;
+        this.reversedCtx = this.reversedCanvas.getContext('2d');
+        this.reversedImage = null;
+        this.needsReversedUpdate = true;
     }
 
     updatePositionOnResize() {
@@ -51,13 +59,11 @@ class Player {
         this.x += dx;
         this.y += dy;
         
-        // تشخیص جهت: اگر زاویه به سمت بالا باشه (sin منفی)
         if (Math.sin(angle) < -0.05) {
             this.direction = 'up';
         } else if (Math.sin(angle) > 0.05) {
             this.direction = 'down';
         }
-        // حرکت کاملاً افقی: جهت قبلی حفظ میشه
         
         this.startWalking();
         this.clamp();
@@ -83,7 +89,7 @@ class Player {
     startWalking() {
         if (!this.isWalking) {
             this.isWalking = true;
-            this.walkFrame = 0; // شروع از posht2
+            this.walkFrame = 0;
             this.walkTimer = 0;
         }
     }
@@ -94,10 +100,35 @@ class Player {
         this.walkTimer = 0;
     }
 
+    updateReversedImage() {
+        const originalImage = this.assets.get('up2');
+        if (!originalImage || !this.assets.isLoaded('up2')) {
+            this.reversedImage = null;
+            return;
+        }
+        
+        // قرینه کردن افقی
+        this.reversedCtx.clearRect(0, 0, this.size, this.size);
+        this.reversedCtx.save();
+        this.reversedCtx.translate(this.size, 0);
+        this.reversedCtx.scale(-1, 1);
+        this.reversedCtx.imageSmoothingEnabled = false;
+        this.reversedCtx.drawImage(originalImage, 0, 0, this.size, this.size);
+        this.reversedCtx.restore();
+        
+        this.reversedImage = new Image();
+        this.reversedImage.src = this.reversedCanvas.toDataURL();
+        this.needsReversedUpdate = false;
+    }
+
     update(dt) {
+        // بروزرسانی تصویر قرینه شده اگه لازم باشه
+        if (this.needsReversedUpdate && this.assets.isLoaded('up2')) {
+            this.updateReversedImage();
+        }
+
         // انیمیشن با deltaTime
         if (this.isWalking && this.direction === 'up') {
-            // فقط در حرکت به بالا انیمیشن اجرا میشه
             this.walkTimer += dt * 1000;
             
             if (this.walkTimer >= this.walkInterval) {
@@ -123,12 +154,9 @@ class Player {
             this.x += Math.cos(angle) * this.speed * dt;
             this.y += Math.sin(angle) * this.speed * dt;
             
-            // تشخیص جهت بر اساس هدف
             if (dy < -1) {
-                // هدف بالای بازیکنه
                 this.direction = 'up';
             } else if (dy > 1) {
-                // هدف پایین بازیکنه
                 this.direction = 'down';
             }
             
@@ -136,7 +164,6 @@ class Player {
             this.clamp();
         }
         
-        // وقتی حرکت نمی‌کنه، idle
         if (!this.isWalking) {
             this.direction = 'idle';
         }
@@ -161,25 +188,37 @@ class Player {
         }
 
         // انتخاب عکس
-        let imageKey = 'front'; // پیش‌فرض pangnafasdam
+        let imageToDraw = null;
         
         if (this.direction === 'up') {
-            // حرکت به بالا: انیمیشن 2-1-3
-            imageKey = this.upFrames[this.walkFrame];
+            const frameKey = this.upFrames[this.walkFrame];
+            
+            if (frameKey === 'up2_reversed') {
+                // استفاده از تصویر قرینه شده
+                if (this.reversedImage) {
+                    imageToDraw = this.reversedImage;
+                } else {
+                    // fallback به عکس اصلی
+                    imageToDraw = this.assets.get('up2');
+                }
+            } else {
+                imageToDraw = this.assets.get(frameKey);
+            }
         } else if (this.direction === 'down') {
-            // حرکت به پایین: فقط pangnafasdam
-            imageKey = 'front';
+            imageToDraw = this.assets.get('front');
         } else if (this.direction === 'idle') {
-            // ایستاده: pangnafasdam
-            imageKey = 'front';
+            imageToDraw = this.assets.get('front');
         }
 
-        const image = this.assets.get(imageKey);
-        
-        if (image && this.assets.isLoaded(imageKey)) {
+        // Fallback به front اگه هیچی نبود
+        if (!imageToDraw) {
+            imageToDraw = this.assets.get('front');
+        }
+
+        if (imageToDraw) {
             ctx.save();
             ctx.imageSmoothingEnabled = false;
-            ctx.drawImage(image, screenX, screenY, this.size, this.size);
+            ctx.drawImage(imageToDraw, screenX, screenY, this.size, this.size);
             ctx.restore();
         } else {
             // مربع پیش‌فرض

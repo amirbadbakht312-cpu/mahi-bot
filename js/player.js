@@ -12,31 +12,34 @@ class Player {
         this.y = world.height / 2 - this.size / 2;
         
         this.direction = 'idle';
-        this.lastDirection = 'down';
         
-        // انیمیشن حرکت به بالا
         this.isWalking = false;
-        this.walkFrame = 0; // 0=posht2, 1=posht1, 2=posht2 reversed
+        this.walkFrame = 0;
         this.walkTimer = 0;
         this.walkInterval = 100;
         
-        // فریم‌های حرکت به بالا: 2 -> 1 -> 2-reversed -> 2 -> 1 -> 2-reversed
         this.upFrames = ['up2', 'up1', 'up2_reversed'];
         
-        // Canvas آف‌اسکرین برای قرینه کردن
-        this.reversedCanvas = document.createElement('canvas');
-        this.reversedCanvas.width = this.size;
-        this.reversedCanvas.height = this.size;
-        this.reversedCtx = this.reversedCanvas.getContext('2d');
+        // Canvas اشتراکی برای قرینه کردن (static)
+        if (!Player._reversedCanvas) {
+            Player._reversedCanvas = document.createElement('canvas');
+            Player._reversedCanvas.width = this.size;
+            Player._reversedCanvas.height = this.size;
+            Player._reversedCtx = Player._reversedCanvas.getContext('2d');
+        }
+        
         this.reversedImage = null;
         this.needsReversedUpdate = true;
     }
 
+    setPosition(x, y) {
+        this.x = x;
+        this.y = y;
+    }
+
     updatePositionOnResize() {
-        this.x = this.world.width / 2 - this.size / 2;
-        this.y = this.world.height / 2 - this.size / 2;
-        this.targetX = null;
-        this.targetY = null;
+        // فقط clamp کن، ریست نکن به وسط
+        this.clamp();
     }
 
     setControlMode(mode) {
@@ -53,11 +56,8 @@ class Player {
             return;
         }
         
-        const dx = Math.cos(angle) * this.speed * intensity * dt;
-        const dy = Math.sin(angle) * this.speed * intensity * dt;
-        
-        this.x += dx;
-        this.y += dy;
+        this.x += Math.cos(angle) * this.speed * intensity * dt;
+        this.y += Math.sin(angle) * this.speed * intensity * dt;
         
         if (Math.sin(angle) < -0.05) {
             this.direction = 'up';
@@ -102,42 +102,37 @@ class Player {
 
     updateReversedImage() {
         const originalImage = this.assets.get('up2');
-        if (!originalImage || !this.assets.isLoaded('up2')) {
-            this.reversedImage = null;
-            return;
-        }
+        if (!originalImage || !this.assets.isLoaded('up2')) return;
         
-        // قرینه کردن افقی
-        this.reversedCtx.clearRect(0, 0, this.size, this.size);
-        this.reversedCtx.save();
-        this.reversedCtx.translate(this.size, 0);
-        this.reversedCtx.scale(-1, 1);
-        this.reversedCtx.imageSmoothingEnabled = false;
-        this.reversedCtx.drawImage(originalImage, 0, 0, this.size, this.size);
-        this.reversedCtx.restore();
+        const canvas = Player._reversedCanvas;
+        const ctx = Player._reversedCtx;
+        
+        ctx.clearRect(0, 0, this.size, this.size);
+        ctx.save();
+        ctx.translate(this.size, 0);
+        ctx.scale(-1, 1);
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(originalImage, 0, 0, this.size, this.size);
+        ctx.restore();
         
         this.reversedImage = new Image();
-        this.reversedImage.src = this.reversedCanvas.toDataURL();
+        this.reversedImage.src = canvas.toDataURL();
         this.needsReversedUpdate = false;
     }
 
     update(dt) {
-        // بروزرسانی تصویر قرینه شده اگه لازم باشه
         if (this.needsReversedUpdate && this.assets.isLoaded('up2')) {
             this.updateReversedImage();
         }
 
-        // انیمیشن با deltaTime
         if (this.isWalking && this.direction === 'up') {
             this.walkTimer += dt * 1000;
-            
             if (this.walkTimer >= this.walkInterval) {
                 this.walkTimer -= this.walkInterval;
-                this.walkFrame = (this.walkFrame + 1) % 3; // 0->1->2->0->1->2
+                this.walkFrame = (this.walkFrame + 1) % 3;
             }
         }
 
-        // حرکت در حالت کلیک
         if (this.controlMode === 'click' && this.targetX !== null && this.targetY !== null) {
             const dx = this.targetX - this.x;
             const dy = this.targetY - this.y;
@@ -173,7 +168,6 @@ class Player {
         const screenX = this.x - camera.x;
         const screenY = this.y - camera.y;
         
-        // نقطه هدف
         if (this.controlMode === 'click' && this.targetX !== null && this.targetY !== null) {
             const targetScreenX = this.targetX + this.size / 2 - camera.x;
             const targetScreenY = this.targetY + this.size / 2 - camera.y;
@@ -187,47 +181,28 @@ class Player {
             ctx.stroke();
         }
 
-        // انتخاب عکس
         let imageToDraw = null;
         
         if (this.direction === 'up') {
             const frameKey = this.upFrames[this.walkFrame];
-            
             if (frameKey === 'up2_reversed') {
-                // استفاده از تصویر قرینه شده
-                if (this.reversedImage) {
-                    imageToDraw = this.reversedImage;
-                } else {
-                    // fallback به عکس اصلی
-                    imageToDraw = this.assets.get('up2');
-                }
+                imageToDraw = this.reversedImage || this.assets.get('up2');
             } else {
                 imageToDraw = this.assets.get(frameKey);
             }
-        } else if (this.direction === 'down') {
-            imageToDraw = this.assets.get('front');
-        } else if (this.direction === 'idle') {
+        } else {
             imageToDraw = this.assets.get('front');
         }
 
-        // Fallback به front اگه هیچی نبود
         if (!imageToDraw) {
             imageToDraw = this.assets.get('front');
         }
 
-        if (imageToDraw) {
+        if (imageToDraw && imageToDraw.complete && imageToDraw.naturalWidth > 0) {
             ctx.save();
             ctx.imageSmoothingEnabled = false;
             ctx.drawImage(imageToDraw, screenX, screenY, this.size, this.size);
             ctx.restore();
-        } else {
-            // مربع پیش‌فرض
-            ctx.fillStyle = '#00d2ff';
-            ctx.shadowColor = '#00d2ff';
-            ctx.shadowBlur = 15;
-            ctx.fillRect(screenX, screenY, this.size, this.size);
-            ctx.shadowBlur = 0;
-            ctx.shadowColor = 'transparent';
         }
     }
 }

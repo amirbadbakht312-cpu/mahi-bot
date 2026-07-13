@@ -7,12 +7,16 @@ class Joystick {
         this.dx = 0;
         this.dy = 0;
         this.centerX = 100;
-        this.centerY = canvas.height / 2;
+        this.centerY = canvas ? canvas.height / 2 : window.innerHeight / 2;
         this.isDragging = false;
     }
 
     updatePosition() {
-        this.centerY = this.canvas.height / 2;
+        if (this.canvas) {
+            this.centerY = this.canvas.height / (window.devicePixelRatio || 1);
+        } else {
+            this.centerY = window.innerHeight / 2;
+        }
     }
 
     setSize(size) {
@@ -68,11 +72,13 @@ class Joystick {
         let dx = x - this.centerX;
         let dy = y - this.centerY;
         const distance = Math.hypot(dx, dy);
+        
         if (distance > this.maxDist) {
             const angle = Math.atan2(dy, dx);
             dx = Math.cos(angle) * this.maxDist;
             dy = Math.sin(angle) * this.maxDist;
         }
+        
         this.dx = dx;
         this.dy = dy;
     }
@@ -91,6 +97,8 @@ class Joystick {
     }
 
     draw(ctx, isDraggingMode = false) {
+        if (!ctx) return;
+        
         ctx.beginPath();
         ctx.arc(this.centerX, this.centerY, this.radius, 0, Math.PI * 2);
         
@@ -104,6 +112,7 @@ class Joystick {
             ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
             ctx.lineWidth = 2;
         }
+        
         ctx.fill();
         ctx.stroke();
 
@@ -121,4 +130,4 @@ class Joystick {
             ctx.fill();
         }
     }
-                    }
+}

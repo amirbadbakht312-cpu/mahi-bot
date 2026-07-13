@@ -1,4 +1,6 @@
 window.addEventListener('DOMContentLoaded', () => {
+    console.log('=== DOM loaded ===');
+
     const canvas = document.getElementById('gameCanvas');
     if (!canvas) {
         console.error('Canvas not found!');
@@ -6,6 +8,7 @@ window.addEventListener('DOMContentLoaded', () => {
     }
     
     const ctx = canvas.getContext('2d');
+    let gameStarted = false;
 
     let currentControlMode = 'joystick';
     let isDraggingPositionMode = false;
@@ -16,16 +19,60 @@ window.addEventListener('DOMContentLoaded', () => {
     let lastTime = 0;
     let deltaTime = 0;
 
+    // ساخت AssetManager
     const assets = new AssetManager();
+    
+    // تنظیم onAllLoaded قبل از loadImage
+    assets.onAllLoaded = () => {
+        console.log('>>> onAllLoaded fired');
+        startGame();
+    };
+
+    // لود عکس‌ها
+    console.log('Loading images...');
     assets.loadImage('front', 'assets/images/pangnafasdam.png');
     assets.loadImage('up1', 'assets/images/pangghadamposht1.png');
     assets.loadImage('up2', 'assets/images/pangghadamposht2.png');
+    console.log('Total assets:', assets.totalCount);
 
-    const world = new World();
-    const camera = new Camera(world);
-    const player = new Player(world, assets);
-    const joystick = new Joystick(canvas);
-    const minimap = new Minimap(world);
+    // Fallback: اگه تا ۳ ثانیه دیگه لود نشد، وضعیت رو نشون بده
+    setTimeout(() => {
+        if (!gameStarted) {
+            console.warn('GAME NOT STARTED AFTER 3 SECONDS');
+            console.log('Loaded:', assets.loadedCount, '/', assets.totalCount);
+            console.log('Keys:', Object.keys(assets.images));
+            
+            // بررسی کدوم عکس‌ها لود نشدن
+            ['front', 'up1', 'up2'].forEach(key => {
+                const img = assets.get(key);
+                if (img) {
+                    console.log(key + ':', img.complete ? 'loaded' : 'loading', 'src:', img.src);
+                } else {
+                    console.warn(key + ': NOT FOUND');
+                }
+            });
+            
+            // حتی اگه کامل لود نشده، بازی رو شروع کن (با تصاویر پیش‌فرض)
+            console.warn('Force starting game without all assets...');
+            startGame();
+        }
+    }, 3000);
+
+    // شیءهای بازی
+    let world, camera, player, joystick, minimap;
+    
+    try {
+        console.log('Creating game objects...');
+        world = new World();
+        camera = new Camera(world);
+        player = new Player(world, assets);
+        joystick = new Joystick(canvas);
+        minimap = new Minimap(world);
+        console.log('All game objects created successfully');
+    } catch (err) {
+        console.error('Error creating game objects:', err);
+        return;
+    }
 
     function applySettings() {
         const savedMode = localStorage.getItem('penguin_control_mode') || 'joystick';
@@ -34,14 +81,17 @@ window.addEventListener('DOMContentLoaded', () => {
         const savedY = localStorage.getItem('penguin_joystick_y') || 'center';
         
         currentControlMode = savedMode;
-        player.setControlMode(savedMode);
-        joystick.setSize(savedSize);
-        
-        const joyY = savedY === 'center' ? window.innerHeight / 2 : parseInt(savedY);
-        joystick.setPosition(savedX, joyY);
+        if (player) player.setControlMode(savedMode);
+        if (joystick) {
+            joystick.setSize(savedSize);
+            const joyY = savedY === 'center' ? window.innerHeight / 2 : parseInt(savedY);
+            joystick.setPosition(savedX, joyY);
+        }
     }
 
     function resizeEverything() {
+        if (!canvas || !ctx) return;
+        
         const dpr = window.devicePixelRatio || 1;
         canvas.width = window.innerWidth * dpr;
         canvas.height = window.innerHeight * dpr;
@@ -49,44 +99,48 @@ window.addEventListener('DOMContentLoaded', () => {
         canvas.style.height = window.innerHeight + 'px';
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         
-        world.updatePageSize();
-        camera.updateViewSize();
-        joystick.updatePosition();
-        minimap.updatePosition();
-        player.updatePositionOnResize();
+        if (world) world.updatePageSize();
+        if (camera) camera.updateViewSize();
+        if (joystick) joystick.updatePosition();
+        if (minimap) minimap.updatePosition();
+        if (player) player.clamp();
     }
 
     window.addEventListener('resize', resizeEverything);
 
+    // توابع عمومی
     window.setControlMode = (mode) => {
         currentControlMode = mode;
-        player.setControlMode(mode);
+        if (player) player.setControlMode(mode);
         mouseIsDown = false;
         activeTouchId = null;
-        joystick.end();
+        if (joystick) joystick.end();
     };
 
-    window.setJoystickSize = (size) => joystick.setSize(size);
-    window.setJoystickPosition = (x, y) => joystick.setPosition(x, y);
+    window.setJoystickSize = (size) => { if (joystick) joystick.setSize(size); };
+    window.setJoystickPosition = (x, y) => { if (joystick) joystick.setPosition(x, y); };
 
     window.startDraggingPosition = () => {
         isDraggingPositionMode = true;
         isDraggingJoystick = false;
         activeTouchId = null;
-        canvas.style.cursor = 'grab';
+        if (canvas) canvas.style.cursor = 'grab';
     };
 
     window.confirmPosition = () => {
         isDraggingPositionMode = false;
         isDraggingJoystick = false;
         activeTouchId = null;
-        joystick.endDragging();
-        canvas.style.cursor = '';
+        if (joystick) joystick.endDragging();
+        if (canvas) canvas.style.cursor = '';
     };
 
-    window.getJoystickPosition = () => joystick.getPosition();
+    window.getJoystickPosition = () => {
+        return joystick ? joystick.getPosition() : { x: 100, y: window.innerHeight / 2 };
+    };
 
     function getCanvasCoords(e) {
+        if (!canvas) return { x: 0, y: 0 };
         const rect = canvas.getBoundingClientRect();
         const clientX = e.touches ? e.touches[0].clientX : e.clientX;
         const clientY = e.touches ? e.touches[0].clientY : e.clientY;
@@ -94,6 +148,7 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     function getTouchCoords(e, touchId) {
+        if (!canvas) return null;
         const rect = canvas.getBoundingClientRect();
         for (let i = 0; i < e.touches.length; i++) {
             if (e.touches[i].identifier === touchId) {
@@ -106,12 +161,14 @@ window.addEventListener('DOMContentLoaded', () => {
         return null;
     }
 
+    // Mouse events
     canvas.addEventListener('mousedown', (e) => {
+        if (!player || !joystick) return;
         const { x, y } = getCanvasCoords(e);
         
         if (isDraggingPositionMode) {
             isDraggingJoystick = joystick.startDragging(x, y);
-            if (isDraggingJoystick) canvas.style.cursor = 'grabbing';
+            if (isDraggingJoystick && canvas) canvas.style.cursor = 'grabbing';
             return;
         }
 
@@ -125,6 +182,7 @@ window.addEventListener('DOMContentLoaded', () => {
     });
 
     canvas.addEventListener('mousemove', (e) => {
+        if (!player || !joystick) return;
         const { x, y } = getCanvasCoords(e);
         
         if (isDraggingPositionMode) {
@@ -132,7 +190,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 joystick.moveDragging(x, y);
             } else {
                 const dist = Math.hypot(x - joystick.centerX, y - joystick.centerY);
-                canvas.style.cursor = dist <= joystick.radius + 20 ? 'grab' : 'default';
+                if (canvas) canvas.style.cursor = dist <= joystick.radius + 20 ? 'grab' : 'default';
             }
             return;
         }
@@ -145,10 +203,12 @@ window.addEventListener('DOMContentLoaded', () => {
     });
 
     window.addEventListener('mouseup', () => {
+        if (!joystick) return;
+        
         if (isDraggingPositionMode) {
             if (isDraggingJoystick) {
                 isDraggingJoystick = false;
-                canvas.style.cursor = 'grab';
+                if (canvas) canvas.style.cursor = 'grab';
             }
             return;
         }
@@ -156,7 +216,9 @@ window.addEventListener('DOMContentLoaded', () => {
         joystick.end();
     });
 
+    // Touch events
     window.addEventListener('touchstart', (e) => {
+        if (!player || !joystick) return;
         e.preventDefault();
         
         if (activeTouchId !== null) return;
@@ -182,6 +244,7 @@ window.addEventListener('DOMContentLoaded', () => {
     }, { passive: false });
 
     window.addEventListener('touchmove', (e) => {
+        if (!player || !joystick) return;
         e.preventDefault();
         
         if (activeTouchId === null) return;
@@ -200,6 +263,7 @@ window.addEventListener('DOMContentLoaded', () => {
     }, { passive: false });
 
     window.addEventListener('touchend', (e) => {
+        if (!joystick) return;
         e.preventDefault();
         
         let touchFound = false;
@@ -229,14 +293,16 @@ window.addEventListener('DOMContentLoaded', () => {
             isDraggingJoystick = false;
             return;
         }
-        joystick.end();
+        if (joystick) joystick.end();
     }, { passive: false });
 
     function update(dt) {
+        if (!player || !camera) return;
+        
         if (isDraggingPositionMode) {
             player.stopWalking();
         } else {
-            if (currentControlMode === 'joystick') {
+            if (currentControlMode === 'joystick' && joystick) {
                 const movement = joystick.getMovement();
                 if (movement) {
                     player.moveWithJoystick(movement.angle, movement.intensity, dt);
@@ -249,15 +315,22 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     function draw() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        world.draw(ctx, camera);
-        player.draw(ctx, camera);
+        if (!ctx || !world || !player || !camera || !joystick || !minimap) return;
         
-        if (currentControlMode === 'joystick' || isDraggingPositionMode) {
-            joystick.draw(ctx, isDraggingPositionMode);
+        ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+        
+        try {
+            world.draw(ctx, camera);
+            player.draw(ctx, camera);
+            
+            if (currentControlMode === 'joystick' || isDraggingPositionMode) {
+                joystick.draw(ctx, isDraggingPositionMode);
+            }
+            
+            minimap.draw(ctx, player, camera);
+        } catch (err) {
+            console.error('Error in draw:', err);
         }
-        
-        minimap.draw(ctx, player, camera);
     }
 
     function gameLoop(timestamp) {
@@ -272,19 +345,32 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     function startGame() {
+        if (gameStarted) {
+            console.warn('Game already started, skipping...');
+            return;
+        }
+        
+        console.log('=== START GAME ===');
+        gameStarted = true;
+        
         applySettings();
         resizeEverything();
         lastTime = performance.now();
         requestAnimationFrame(gameLoop);
-        console.log('Game started!');
     }
 
-    assets.onAllLoaded = () => {
-        console.log('All assets loaded');
-        startGame();
-    };
+    // شروع بازی
+    // Fallback با setTimeout صفر
+    setTimeout(() => {
+        if (!gameStarted && assets.areAllLoaded()) {
+            console.log('Starting game via setTimeout fallback');
+            startGame();
+        }
+    }, 0);
 
-    if (assets.areAllLoaded()) {
+    // بررسی فوری
+    if (assets.areAllLoaded() && !gameStarted) {
+        console.log('Assets already loaded, starting immediately');
         startGame();
     }
 });

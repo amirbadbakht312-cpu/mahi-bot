@@ -1,4 +1,86 @@
-}
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>بازی کنترل مربع</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            margin: 0; padding: 0; overflow: hidden;
+            background: #0a0a15; height: 100vh;
+            touch-action: none;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        #gameContainer { position: relative; width: 100vw; height: 100vh; }
+        canvas { display: block; position: absolute; top: 0; left: 0; }
+        #settingsBtn {
+            position: absolute; top: 15px; left: 15px;
+            width: 36px; height: 36px;
+            background: rgba(30, 30, 50, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            border-radius: 8px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 16px; color: white; z-index: 1000;
+            transition: all 0.2s; backdrop-filter: blur(10px);
+        }
+        #settingsBtn:hover { background: rgba(50, 50, 80, 0.85); }
+        #settingsPanel {
+            position: absolute; top: 15px; left: 60px;
+            background: rgba(20, 20, 40, 0.92);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 10px; padding: 12px;
+            color: white; z-index: 999; min-width: 230px;
+            backdrop-filter: blur(20px); display: none; font-size: 11px;
+        }
+        #settingsPanel.active { display: block; }
+        #settingsPanel h3 {
+            margin: 0 0 10px 0; font-size: 13px;
+            text-align: center; color: #00d2ff;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding-bottom: 7px;
+        }
+        .setting-group { margin-bottom: 10px; }
+        .setting-group label {
+            display: block; margin-bottom: 4px; font-size: 10px;
+            color: rgba(255, 255, 255, 0.65); font-weight: bold;
+        }
+        .radio-group { display: flex; gap: 5px; flex-direction: column; }
+        .radio-option {
+            display: flex; align-items: center; gap: 5px;
+            cursor: pointer; padding: 5px 8px;
+            background: rgba(255, 255, 255, 0.04);
+            border-radius: 5px; font-size: 10px;
+        }
+        .radio-option:hover { background: rgba(255, 255, 255, 0.08); }
+        .radio-option input[type="radio"] {
+            appearance: none; width: 12px; height: 12px;
+            border: 2px solid rgba(255, 255, 255, 0.25);
+            border-radius: 50%; cursor: pointer; flex-shrink: 0;
+        }
+        .radio-option input[type="radio"]:checked {
+            border-color: #00d2ff; background: rgba(0, 210, 255, 0.2);
+        }
+        .radio-option input[type="radio"]:checked::after {
+            content: ''; position: absolute; top: 1.5px; left: 1.5px;
+            width: 5px; height: 5px; background: #00d2ff; border-radius: 50%;
+        }
+        input[type="range"] {
+            width: 100%; height: 4px;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 2px; outline: none; -webkit-appearance: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none; width: 14px; height: 14px;
+            background: #00d2ff; border-radius: 50%; cursor: pointer;
+        }
+        .range-value { text-align: center; margin-top: 2px; font-size: 9px; color: rgba(255,255,255,0.45); }
+        #setPositionBtn {
+            width: 100%; padding: 6px;
+            background: rgba(0, 210, 255, 0.12);
+            border: 1px solid rgba(0, 210, 255, 0.25);
+            border-radius: 5px; color: #00d2ff; font-size: 10px;
+            cursor: pointer; margin-top: 6px;
+        }
         #setPositionBtn:hover { background: rgba(0, 210, 255, 0.2); }
         .position-info { text-align: center; margin-top: 4px; font-size: 9px; color: rgba(255,255,255,0.45); }
         #confirmPositionBtn {
@@ -76,8 +158,7 @@
         settingsBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             settingsPanel.classList.toggle('active');
-
-});
+        });
         document.addEventListener('click', (e) => {
             if (!settingsPanel.contains(e.target) && e.target !== settingsBtn) {
                 settingsPanel.classList.remove('active');

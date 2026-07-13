@@ -6,19 +6,16 @@ window.addEventListener('DOMContentLoaded', () => {
     let isDraggingPositionMode = false;
     let isDraggingJoystick = false;
     let mouseIsDown = false;
-
-    // Multi-touch support
     let activeTouchId = null;
 
     let lastTime = 0;
     let deltaTime = 0;
-    let gameStarted = false;
 
     const assets = new AssetManager();
-    assets.loadImage('front', 'assets/images/pangnafasdam.jpeg');
-    assets.loadImage('up1', 'assets/images/pangghadamposht1.jpeg');
-    assets.loadImage('up2', 'assets/images/pangghadamposht2.jpeg');
-   
+    assets.loadImage('front', 'assets/images/pangnafasdam.png');
+    assets.loadImage('up1', 'assets/images/pangghadamposht1.png');
+    assets.loadImage('up2', 'assets/images/pangghadamposht2.png');
+
     const world = new World();
     const camera = new Camera(world);
     const player = new Player(world, assets);
@@ -35,13 +32,13 @@ window.addEventListener('DOMContentLoaded', () => {
         
         world.updatePageSize();
         camera.updateViewSize();
-        // بازیکن رو ریست نمی‌کنیم - فقط دوربین و دنیا آپدیت میشن
         joystick.updatePosition();
         minimap.updatePosition();
     }
 
     window.addEventListener('resize', resizeEverything);
 
+    // این توابع باید public باشن برای UI
     window.setControlMode = (mode) => {
         currentControlMode = mode;
         player.setControlMode(mode);
@@ -51,6 +48,8 @@ window.addEventListener('DOMContentLoaded', () => {
     };
 
     window.setJoystickSize = (size) => joystick.setSize(size);
+
+    window.setJoystickPosition = (x, y) => joystick.setPosition(x, y); // این خط اضافه شد
 
     window.startDraggingPosition = () => {
         isDraggingPositionMode = true;
@@ -89,7 +88,6 @@ window.addEventListener('DOMContentLoaded', () => {
         return null;
     }
 
-    // Mouse events
     canvas.addEventListener('mousedown', (e) => {
         const { x, y } = getCanvasCoords(e);
         
@@ -140,11 +138,10 @@ window.addEventListener('DOMContentLoaded', () => {
         joystick.end();
     });
 
-    // Touch events with multi-touch support
     window.addEventListener('touchstart', (e) => {
         e.preventDefault();
         
-        if (activeTouchId !== null) return; // already tracking a touch
+        if (activeTouchId !== null) return;
         
         const touch = e.touches[0];
         if (!touch) return;
@@ -187,7 +184,6 @@ window.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('touchend', (e) => {
         e.preventDefault();
         
-        // Check if our tracked touch ended
         let touchFound = false;
         for (let i = 0; i < e.touches.length; i++) {
             if (e.touches[i].identifier === activeTouchId) {
@@ -220,8 +216,6 @@ window.addEventListener('DOMContentLoaded', () => {
 
     function update(dt) {
         if (isDraggingPositionMode) {
-            // فقط حرکت بازیکن متوقف بشه، نه کل آپدیت
-            // انیمیشن‌ها و NPCها اینجا آپدیت میشن
             player.stopWalking();
         } else {
             if (currentControlMode === 'joystick') {
@@ -229,8 +223,6 @@ window.addEventListener('DOMContentLoaded', () => {
                 if (movement) {
                     player.moveWithJoystick(movement.angle, movement.intensity, dt);
                 }
-                // stopWalking فقط وقتی لازمه صدا زده بشه
-                // نه هر فریم
             }
         }
         
@@ -255,17 +247,15 @@ window.addEventListener('DOMContentLoaded', () => {
         if (lastTime === 0) lastTime = timestamp;
         deltaTime = (timestamp - lastTime) / 1000;
         lastTime = timestamp;
-        if (deltaTime > 0.1) deltaTime = 0.016; // محدودیت سخت‌تر
+        if (deltaTime > 0.1) deltaTime = 0.016;
         
         update(deltaTime);
         draw();
         requestAnimationFrame(gameLoop);
     }
 
-    // شروع بازی فقط بعد از لود همه عکس‌ها
     function startGame() {
         resizeEverything();
-        gameStarted = true;
         lastTime = performance.now();
         requestAnimationFrame(gameLoop);
     }
@@ -274,7 +264,6 @@ window.addEventListener('DOMContentLoaded', () => {
         startGame();
     };
 
-    // اگه عکس‌ها زودتر لود شدن (مثلاً از کش)
     if (assets.areAllLoaded()) {
         startGame();
     }

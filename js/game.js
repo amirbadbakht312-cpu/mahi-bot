@@ -1,5 +1,10 @@
 window.addEventListener('DOMContentLoaded', () => {
     const canvas = document.getElementById('gameCanvas');
+    if (!canvas) {
+        console.error('Canvas not found!');
+        return;
+    }
+    
     const ctx = canvas.getContext('2d');
 
     let currentControlMode = 'joystick';
@@ -22,6 +27,20 @@ window.addEventListener('DOMContentLoaded', () => {
     const joystick = new Joystick(canvas);
     const minimap = new Minimap(world);
 
+    function applySettings() {
+        const savedMode = localStorage.getItem('penguin_control_mode') || 'joystick';
+        const savedSize = parseInt(localStorage.getItem('penguin_joystick_size') || '60');
+        const savedX = parseInt(localStorage.getItem('penguin_joystick_x') || '100');
+        const savedY = localStorage.getItem('penguin_joystick_y') || 'center';
+        
+        currentControlMode = savedMode;
+        player.setControlMode(savedMode);
+        joystick.setSize(savedSize);
+        
+        const joyY = savedY === 'center' ? window.innerHeight / 2 : parseInt(savedY);
+        joystick.setPosition(savedX, joyY);
+    }
+
     function resizeEverything() {
         const dpr = window.devicePixelRatio || 1;
         canvas.width = window.innerWidth * dpr;
@@ -34,11 +53,11 @@ window.addEventListener('DOMContentLoaded', () => {
         camera.updateViewSize();
         joystick.updatePosition();
         minimap.updatePosition();
+        player.updatePositionOnResize();
     }
 
     window.addEventListener('resize', resizeEverything);
 
-    // این توابع باید public باشن برای UI
     window.setControlMode = (mode) => {
         currentControlMode = mode;
         player.setControlMode(mode);
@@ -48,8 +67,7 @@ window.addEventListener('DOMContentLoaded', () => {
     };
 
     window.setJoystickSize = (size) => joystick.setSize(size);
-
-    window.setJoystickPosition = (x, y) => joystick.setPosition(x, y); // این خط اضافه شد
+    window.setJoystickPosition = (x, y) => joystick.setPosition(x, y);
 
     window.startDraggingPosition = () => {
         isDraggingPositionMode = true;
@@ -232,7 +250,6 @@ window.addEventListener('DOMContentLoaded', () => {
 
     function draw() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        
         world.draw(ctx, camera);
         player.draw(ctx, camera);
         
@@ -255,12 +272,15 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     function startGame() {
+        applySettings();
         resizeEverything();
         lastTime = performance.now();
         requestAnimationFrame(gameLoop);
+        console.log('Game started!');
     }
 
     assets.onAllLoaded = () => {
+        console.log('All assets loaded');
         startGame();
     };
 

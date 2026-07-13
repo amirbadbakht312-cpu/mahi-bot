@@ -50,7 +50,6 @@
             cursor: pointer; padding: 5px 8px;
             background: rgba(255, 255, 255, 0.04);
             border-radius: 5px; font-size: 10px;
-            position: relative;
         }
         .radio-option:hover { background: rgba(255, 255, 255, 0.08); }
         .radio-option input[type="radio"] {
@@ -113,7 +112,7 @@
                 <label>حالت کنترل:</label>
                 <div class="radio-group" id="controlModeGroup">
                     <label class="radio-option">
-                        <input type="radio" name="controlMode" value="joystick">
+                        <input type="radio" name="controlMode" value="joystick" checked>
                         <span>دایره کنترل (جوی‌استیک)</span>
                     </label>
                     <label class="radio-option">
@@ -147,7 +146,6 @@
     
     <script>
         (function() {
-            // LocalStorage keys
             const STORAGE_KEY_CONTROL = 'penguin_control_mode';
             const STORAGE_KEY_JOY_SIZE = 'penguin_joystick_size';
             const STORAGE_KEY_JOY_X = 'penguin_joystick_x';
@@ -166,9 +164,7 @@
             const posYSpan = document.getElementById('posY');
             
             let dragHintTimeout = null;
-            let positionUpdateInterval = null;
 
-            // Helper: safe call to game functions
             function safeCall(fnName, ...args) {
                 if (typeof window[fnName] === 'function') {
                     return window[fnName](...args);
@@ -176,47 +172,39 @@
                 return null;
             }
 
-            // Load settings from localStorage
             function loadSettings() {
                 const savedMode = localStorage.getItem(STORAGE_KEY_CONTROL) || 'joystick';
                 const savedJoySize = localStorage.getItem(STORAGE_KEY_JOY_SIZE) || '60';
                 const savedJoyX = localStorage.getItem(STORAGE_KEY_JOY_X) || '100';
                 const savedJoyY = localStorage.getItem(STORAGE_KEY_JOY_Y) || 'center';
 
-                // Set radio button
                 controlModeRadios.forEach(radio => {
                     radio.checked = radio.value === savedMode;
                 });
 
-                // Set joystick visibility
                 joystickSettings.style.display = savedMode === 'joystick' ? 'block' : 'none';
-
-                // Set joystick size
                 joystickSizeSlider.value = savedJoySize;
                 sizeValue.textContent = savedJoySize + 'px';
-
-                // Set position display
                 posXSpan.textContent = savedJoyX;
                 posYSpan.textContent = savedJoyY === 'center' ? 'وسط' : savedJoyY;
-
-                // Apply to game
-                safeCall('setControlMode', savedMode);
-                safeCall('setJoystickSize', parseInt(savedJoySize));
                 
-                const joyY = savedJoyY === 'center' ? window.innerHeight / 2 : parseInt(savedJoyY);
-                safeCall('setJoystickPosition', parseInt(savedJoyX), joyY);
+                // اعمال تنظیمات به بازی با تاخیر برای اطمینان از لود game.js
+                setTimeout(() => {
+                    safeCall('setControlMode', savedMode);
+                    safeCall('setJoystickSize', parseInt(savedJoySize));
+                    
+                    const joyY = savedJoyY === 'center' ? window.innerHeight / 2 : parseInt(savedJoyY);
+                    safeCall('setJoystickPosition', parseInt(savedJoyX), joyY);
+                }, 200);
             }
 
-            // Save settings to localStorage
-            function saveSettings() {
+            function saveModeAndSize() {
                 const mode = document.querySelector('input[name="controlMode"]:checked')?.value || 'joystick';
                 const size = joystickSizeSlider.value;
-                
                 localStorage.setItem(STORAGE_KEY_CONTROL, mode);
                 localStorage.setItem(STORAGE_KEY_JOY_SIZE, size);
             }
 
-            // Toggle panel
             function togglePanel() {
                 settingsPanel.classList.toggle('active');
             }
@@ -225,57 +213,56 @@
                 settingsPanel.classList.remove('active');
             }
 
-            // ESC key to close panel
-            document.addEventListener('keydown', (e) => {
-                if (e.key === 'Escape' && settingsPanel.classList.contains('active')) {
-                    closePanel();
-                }
-            });
-
-            // Settings button
+            // دکمه تنظیمات
             settingsBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 togglePanel();
             });
 
-            // Close panel when clicking outside
+            // کلیک بیرون پنل
             document.addEventListener('click', (e) => {
                 if (!settingsPanel.contains(e.target) && e.target !== settingsBtn) {
                     closePanel();
                 }
             });
 
-            // Prevent closing when clicking inside panel
+            // بستن با ESC
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && settingsPanel.classList.contains('active')) {
+                    closePanel();
+                }
+            });
+
+            // جلوگیری از بسته شدن با کلیک داخل پنل
             settingsPanel.addEventListener('click', (e) => {
                 e.stopPropagation();
             });
 
-            // Control mode change
+            // تغییر حالت کنترل
             controlModeRadios.forEach(radio => {
                 radio.addEventListener('change', (e) => {
                     const mode = e.target.value;
                     joystickSettings.style.display = mode === 'joystick' ? 'block' : 'none';
-                    saveSettings();
+                    saveModeAndSize();
                     safeCall('setControlMode', mode);
                 });
             });
 
-            // Joystick size change
+            // تغییر اندازه جوی‌استیک
             joystickSizeSlider.addEventListener('input', (e) => {
                 const size = e.target.value;
                 sizeValue.textContent = size + 'px';
-                saveSettings();
+                saveModeAndSize();
                 safeCall('setJoystickSize', parseInt(size));
             });
 
-            // Set position button
+            // دکمه تنظیم موقعیت
             setPositionBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 closePanel();
                 confirmPositionBtn.style.display = 'block';
                 dragHint.style.display = 'block';
                 
-                // Clear previous timeout
                 if (dragHintTimeout) clearTimeout(dragHintTimeout);
                 dragHintTimeout = setTimeout(() => {
                     dragHint.style.display = 'none';
@@ -283,9 +270,12 @@
                 
                 safeCall('startDraggingPosition');
                 
-                // Update position display while dragging
-                if (positionUpdateInterval) clearInterval(positionUpdateInterval);
-                positionUpdateInterval = setInterval(() => {
+                // بروزرسانی موقعیت حین درگ
+                const posInterval = setInterval(() => {
+                    if (confirmPositionBtn.style.display === 'none') {
+                        clearInterval(posInterval);
+                        return;
+                    }
                     const pos = safeCall('getJoystickPosition');
                     if (pos) {
                         posXSpan.textContent = Math.round(pos.x);
@@ -294,14 +284,16 @@
                 }, 100);
             });
 
-            // Confirm position button
+            // دکمه تأیید موقعیت
             confirmPositionBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 confirmPositionBtn.style.display = 'none';
                 dragHint.style.display = 'none';
                 
-                if (dragHintTimeout) clearTimeout(dragHintTimeout);
-                if (positionUpdateInterval) clearInterval(positionUpdateInterval);
+                if (dragHintTimeout) {
+                    clearTimeout(dragHintTimeout);
+                    dragHintTimeout = null;
+                }
                 
                 safeCall('confirmPosition');
                 
@@ -318,7 +310,7 @@
                 settingsPanel.classList.add('active');
             });
 
-            // Initialize
+            // لود تنظیمات ذخیره شده
             loadSettings();
         })();
     </script>

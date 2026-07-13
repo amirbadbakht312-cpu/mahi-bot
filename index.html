@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>بازی کنترل مربع</title>
+    <title>بازی پنگوئن</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -17,21 +17,21 @@
         #settingsBtn {
             position: absolute; top: 15px; left: 15px;
             width: 36px; height: 36px;
-            background: rgba(30, 30, 50, 0.85);
+            background: rgba(30, 30, 50, 0.9);
             border: 1px solid rgba(255, 255, 255, 0.25);
             border-radius: 8px; cursor: pointer;
             display: flex; align-items: center; justify-content: center;
             font-size: 16px; color: white; z-index: 1000;
-            transition: all 0.2s; backdrop-filter: blur(10px);
+            transition: all 0.2s;
         }
-        #settingsBtn:hover { background: rgba(50, 50, 80, 0.85); }
+        #settingsBtn:hover { background: rgba(50, 50, 80, 0.9); }
         #settingsPanel {
             position: absolute; top: 15px; left: 60px;
-            background: rgba(20, 20, 40, 0.92);
+            background: rgba(20, 20, 40, 0.94);
             border: 1px solid rgba(255, 255, 255, 0.15);
             border-radius: 10px; padding: 12px;
             color: white; z-index: 999; min-width: 230px;
-            backdrop-filter: blur(20px); display: none; font-size: 11px;
+            display: none; font-size: 11px;
         }
         #settingsPanel.active { display: block; }
         #settingsPanel h3 {
@@ -50,19 +50,21 @@
             cursor: pointer; padding: 5px 8px;
             background: rgba(255, 255, 255, 0.04);
             border-radius: 5px; font-size: 10px;
+            position: relative;
         }
         .radio-option:hover { background: rgba(255, 255, 255, 0.08); }
         .radio-option input[type="radio"] {
-            appearance: none; width: 12px; height: 12px;
+            appearance: none; width: 14px; height: 14px;
             border: 2px solid rgba(255, 255, 255, 0.25);
             border-radius: 50%; cursor: pointer; flex-shrink: 0;
+            position: relative;
         }
         .radio-option input[type="radio"]:checked {
             border-color: #00d2ff; background: rgba(0, 210, 255, 0.2);
         }
         .radio-option input[type="radio"]:checked::after {
-            content: ''; position: absolute; top: 1.5px; left: 1.5px;
-            width: 5px; height: 5px; background: #00d2ff; border-radius: 50%;
+            content: ''; position: absolute; top: 2px; left: 2px;
+            width: 6px; height: 6px; background: #00d2ff; border-radius: 50%;
         }
         input[type="range"] {
             width: 100%; height: 4px;
@@ -111,7 +113,7 @@
                 <label>حالت کنترل:</label>
                 <div class="radio-group" id="controlModeGroup">
                     <label class="radio-option">
-                        <input type="radio" name="controlMode" value="joystick" checked>
+                        <input type="radio" name="controlMode" value="joystick">
                         <span>دایره کنترل (جوی‌استیک)</span>
                     </label>
                     <label class="radio-option">
@@ -135,7 +137,6 @@
         <div id="dragHint">دایره رو بکش هرجا خواستی، بعد تایید کن</div>
     </div>
 
-    <!-- ترتیب درست اسکریپت‌ها -->
     <script src="js/assetManager.js"></script>
     <script src="js/world.js"></script>
     <script src="js/camera.js"></script>
@@ -145,57 +146,181 @@
     <script src="js/game.js"></script>
     
     <script>
-        const settingsBtn = document.getElementById('settingsBtn');
-        const settingsPanel = document.getElementById('settingsPanel');
-        const joystickSettings = document.getElementById('joystickSettings');
-        const controlModeRadios = document.querySelectorAll('input[name="controlMode"]');
-        const joystickSizeSlider = document.getElementById('joystickSize');
-        const sizeValue = document.getElementById('sizeValue');
-        const setPositionBtn = document.getElementById('setPositionBtn');
-        const confirmPositionBtn = document.getElementById('confirmPositionBtn');
-        const dragHint = document.getElementById('dragHint');
-        const posXSpan = document.getElementById('posX');
-        const posYSpan = document.getElementById('posY');
+        (function() {
+            // LocalStorage keys
+            const STORAGE_KEY_CONTROL = 'penguin_control_mode';
+            const STORAGE_KEY_JOY_SIZE = 'penguin_joystick_size';
+            const STORAGE_KEY_JOY_X = 'penguin_joystick_x';
+            const STORAGE_KEY_JOY_Y = 'penguin_joystick_y';
 
-        settingsBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            settingsPanel.classList.toggle('active');
-        });
-        document.addEventListener('click', (e) => {
-            if (!settingsPanel.contains(e.target) && e.target !== settingsBtn) {
+            const settingsBtn = document.getElementById('settingsBtn');
+            const settingsPanel = document.getElementById('settingsPanel');
+            const joystickSettings = document.getElementById('joystickSettings');
+            const controlModeRadios = document.querySelectorAll('input[name="controlMode"]');
+            const joystickSizeSlider = document.getElementById('joystickSize');
+            const sizeValue = document.getElementById('sizeValue');
+            const setPositionBtn = document.getElementById('setPositionBtn');
+            const confirmPositionBtn = document.getElementById('confirmPositionBtn');
+            const dragHint = document.getElementById('dragHint');
+            const posXSpan = document.getElementById('posX');
+            const posYSpan = document.getElementById('posY');
+            
+            let dragHintTimeout = null;
+            let positionUpdateInterval = null;
+
+            // Helper: safe call to game functions
+            function safeCall(fnName, ...args) {
+                if (typeof window[fnName] === 'function') {
+                    return window[fnName](...args);
+                }
+                return null;
+            }
+
+            // Load settings from localStorage
+            function loadSettings() {
+                const savedMode = localStorage.getItem(STORAGE_KEY_CONTROL) || 'joystick';
+                const savedJoySize = localStorage.getItem(STORAGE_KEY_JOY_SIZE) || '60';
+                const savedJoyX = localStorage.getItem(STORAGE_KEY_JOY_X) || '100';
+                const savedJoyY = localStorage.getItem(STORAGE_KEY_JOY_Y) || 'center';
+
+                // Set radio button
+                controlModeRadios.forEach(radio => {
+                    radio.checked = radio.value === savedMode;
+                });
+
+                // Set joystick visibility
+                joystickSettings.style.display = savedMode === 'joystick' ? 'block' : 'none';
+
+                // Set joystick size
+                joystickSizeSlider.value = savedJoySize;
+                sizeValue.textContent = savedJoySize + 'px';
+
+                // Set position display
+                posXSpan.textContent = savedJoyX;
+                posYSpan.textContent = savedJoyY === 'center' ? 'وسط' : savedJoyY;
+
+                // Apply to game
+                safeCall('setControlMode', savedMode);
+                safeCall('setJoystickSize', parseInt(savedJoySize));
+                
+                const joyY = savedJoyY === 'center' ? window.innerHeight / 2 : parseInt(savedJoyY);
+                safeCall('setJoystickPosition', parseInt(savedJoyX), joyY);
+            }
+
+            // Save settings to localStorage
+            function saveSettings() {
+                const mode = document.querySelector('input[name="controlMode"]:checked')?.value || 'joystick';
+                const size = joystickSizeSlider.value;
+                
+                localStorage.setItem(STORAGE_KEY_CONTROL, mode);
+                localStorage.setItem(STORAGE_KEY_JOY_SIZE, size);
+            }
+
+            // Toggle panel
+            function togglePanel() {
+                settingsPanel.classList.toggle('active');
+            }
+
+            function closePanel() {
                 settingsPanel.classList.remove('active');
             }
-        });
-        settingsPanel.addEventListener('click', (e) => e.stopPropagation());
 
-        controlModeRadios.forEach(radio => {
-            radio.addEventListener('change', (e) => {
-                joystickSettings.style.display = e.target.value === 'joystick' ? 'block' : 'none';
-                window.setControlMode(e.target.value);
+            // ESC key to close panel
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && settingsPanel.classList.contains('active')) {
+                    closePanel();
+                }
             });
-        });
-        joystickSizeSlider.addEventListener('input', (e) => {
-            sizeValue.textContent = e.target.value + 'px';
-            window.setJoystickSize(parseInt(e.target.value));
-        });
-        setPositionBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            settingsPanel.classList.remove('active');
-            confirmPositionBtn.style.display = 'block';
-            dragHint.style.display = 'block';
-            setTimeout(() => { dragHint.style.display = 'none'; }, 3000);
-            window.startDraggingPosition();
-        });
-        confirmPositionBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            confirmPositionBtn.style.display = 'none';
-            dragHint.style.display = 'none';
-            settingsPanel.classList.add('active');
-            window.confirmPosition();
-            const pos = window.getJoystickPosition();
-            posXSpan.textContent = Math.round(pos.x);
-            posYSpan.textContent = Math.round(pos.y);
-        });
+
+            // Settings button
+            settingsBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                togglePanel();
+            });
+
+            // Close panel when clicking outside
+            document.addEventListener('click', (e) => {
+                if (!settingsPanel.contains(e.target) && e.target !== settingsBtn) {
+                    closePanel();
+                }
+            });
+
+            // Prevent closing when clicking inside panel
+            settingsPanel.addEventListener('click', (e) => {
+                e.stopPropagation();
+            });
+
+            // Control mode change
+            controlModeRadios.forEach(radio => {
+                radio.addEventListener('change', (e) => {
+                    const mode = e.target.value;
+                    joystickSettings.style.display = mode === 'joystick' ? 'block' : 'none';
+                    saveSettings();
+                    safeCall('setControlMode', mode);
+                });
+            });
+
+            // Joystick size change
+            joystickSizeSlider.addEventListener('input', (e) => {
+                const size = e.target.value;
+                sizeValue.textContent = size + 'px';
+                saveSettings();
+                safeCall('setJoystickSize', parseInt(size));
+            });
+
+            // Set position button
+            setPositionBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                closePanel();
+                confirmPositionBtn.style.display = 'block';
+                dragHint.style.display = 'block';
+                
+                // Clear previous timeout
+                if (dragHintTimeout) clearTimeout(dragHintTimeout);
+                dragHintTimeout = setTimeout(() => {
+                    dragHint.style.display = 'none';
+                }, 3000);
+                
+                safeCall('startDraggingPosition');
+                
+                // Update position display while dragging
+                if (positionUpdateInterval) clearInterval(positionUpdateInterval);
+                positionUpdateInterval = setInterval(() => {
+                    const pos = safeCall('getJoystickPosition');
+                    if (pos) {
+                        posXSpan.textContent = Math.round(pos.x);
+                        posYSpan.textContent = Math.round(pos.y);
+                    }
+                }, 100);
+            });
+
+            // Confirm position button
+            confirmPositionBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                confirmPositionBtn.style.display = 'none';
+                dragHint.style.display = 'none';
+                
+                if (dragHintTimeout) clearTimeout(dragHintTimeout);
+                if (positionUpdateInterval) clearInterval(positionUpdateInterval);
+                
+                safeCall('confirmPosition');
+                
+                const pos = safeCall('getJoystickPosition');
+                if (pos) {
+                    const x = Math.round(pos.x);
+                    const y = Math.round(pos.y);
+                    posXSpan.textContent = x;
+                    posYSpan.textContent = y;
+                    localStorage.setItem(STORAGE_KEY_JOY_X, x.toString());
+                    localStorage.setItem(STORAGE_KEY_JOY_Y, y.toString());
+                }
+                
+                settingsPanel.classList.add('active');
+            });
+
+            // Initialize
+            loadSettings();
+        })();
     </script>
 </body>
 </html>

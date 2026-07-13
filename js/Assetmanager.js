@@ -19,6 +19,7 @@ class AssetManager {
         };
         
         img.onerror = () => {
+            console.warn('Failed to load image:', src);
             this.loadedCount++;
             if (this.loadedCount === this.totalCount && this.onAllLoaded) {
                 this.onAllLoaded();
@@ -34,6 +35,12 @@ class AssetManager {
     }
 
     isLoaded(key) {
-        return this.images[key] && this.images[key].complete && this.images[key].naturalWidth > 0;
+        return this.images[key] && 
+               this.images[key].complete && 
+               this.images[key].naturalWidth > 0;
+    }
+
+    areAllLoaded() {
+        return this.loadedCount === this.totalCount;
     }
 }

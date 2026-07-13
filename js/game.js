@@ -18,8 +18,7 @@ window.addEventListener('DOMContentLoaded', () => {
     assets.loadImage('front', 'assets/images/pangnafasdam.jpeg');
     assets.loadImage('up1', 'assets/images/pangghadamposht1.jpeg');
     assets.loadImage('up2', 'assets/images/pangghadamposht2.jpeg');
-    assets.loadImage('up3', 'assets/images/pangghadamposht3.jpeg');
-
+   
     const world = new World();
     const camera = new Camera(world);
     const player = new Player(world, assets);
